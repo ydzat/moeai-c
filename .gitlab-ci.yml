@@ -6,8 +6,8 @@ stages:
   - documentation
   - deploy
 
-# 通用配置
-.common_setup:
+# 全局配置
+default:
   before_script:
     - export KERNEL_VERSION=$(uname -r)
     - echo "当前内核版本: ${KERNEL_VERSION}"
@@ -17,12 +17,11 @@ stages:
 # 构建内核模块
 build_module:
   stage: build
-  extends: .common_setup
   script:
     - echo "尝试构建内核模块..."
     - mkdir -p build/obj
     - gcc -c src/utils/*.c -I include -o build/obj/utils.o || echo "编译工具函数失败，但继续执行"
-    - echo "模块编译暂时跳过，在本地开发环境完成" 
+    - echo "模块编译暂时跳过，在本地开发环境完成"
   tags:
     - moeai
     - linux
@@ -31,7 +30,6 @@ build_module:
 # 构建命令行工具
 build_cli:
   stage: build
-  extends: .common_setup
   script:
     - echo "构建命令行工具..."
     - mkdir -p build/bin
@@ -47,7 +45,6 @@ build_cli:
 # 静态代码检查
 code_check:
   stage: test
-  extends: .common_setup
   script:
     - echo "执行静态代码检查"
     - sudo apt-get install -y clang-tidy || echo "无法安装 clang-tidy，跳过"
