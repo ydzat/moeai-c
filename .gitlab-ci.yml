@@ -13,7 +13,6 @@ stages:
     - echo "当前内核版本: ${KERNEL_VERSION}"
     - sudo apt-get update || apt-get update
     - sudo apt-get install -y gcc make || apt-get install -y gcc make
-    # 仅安装必要的开发工具，暂时跳过内核头文件
 
 # 构建内核模块
 build_module:
@@ -21,7 +20,6 @@ build_module:
   extends: .common_setup
   script:
     - echo "尝试构建内核模块..."
-    # 由于内核头文件安装可能有问题，我们暂时只编译CLI工具和Utils部分
     - mkdir -p build/obj
     - gcc -c src/utils/*.c -I include -o build/obj/utils.o || echo "编译工具函数失败，但继续执行"
     - echo "模块编译暂时跳过，在本地开发环境完成" 
@@ -73,7 +71,7 @@ generate_docs:
       - docs/html
     expire_in: 1 month
   only:
-    - master  # 或者 main
+    - master
   tags:
     - moeai
     - linux
@@ -91,7 +89,7 @@ pages:
     paths:
       - public
   only:
-    - master  # 或者 main
+    - master
   tags:
     - moeai
     - linux
