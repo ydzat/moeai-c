@@ -1,0 +1,36 @@
+# 内核模块编译产物
+*.ko
+*.o
+*.mod
+*.mod.c
+*.cmd
+.tmp_versions/
+Module.symvers
+modules.order
+*.ko.unsigned
+*.mod.o.ur-safe
+
+# 构建目录
+/build/
+
+# 文档生成目录
+/docs/
+
+# 临时文件
+*~
+*.swp
+*.bak
+
+# 依赖文件
+.depend
+.*.cmd
+.cache.mk
+
+# RPM 构建文件
+*.rpm
+*.tar.gz
+
+# IDE 文件
+.vscode/
+.idea/
+*.code-workspace

@@ -1,0 +1,53 @@
+# Doxyfile for MoeAI-C 项目
+
+# 项目相关配置
+PROJECT_NAME           = "MoeAI-C"
+PROJECT_NUMBER         = "0.1.0"
+PROJECT_BRIEF          = "智能内核助手模块"
+PROJECT_LOGO           = 
+OUTPUT_DIRECTORY       = docs
+CREATE_SUBDIRS         = NO
+OUTPUT_LANGUAGE        = Chinese
+
+# 构建相关配置
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+RECURSIVE              = YES
+EXCLUDE                = build/ \
+                         .git/ \
+                         packaging/
+
+# 输入相关配置
+INPUT                  = src/ \
+                         include/ \
+                         cli/ \
+                         README.md \
+                         design.md
+FILE_PATTERNS          = *.c \
+                         *.h \
+                         *.md
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE = README.md
+
+# 输出相关配置
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_LATEX         = NO
+
+# 图形相关设置
+HAVE_DOT               = YES
+CLASS_DIAGRAMS         = YES
+COLLABORATION_GRAPH    = YES
+UML_LOOK               = YES
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+
+# 源代码相关配置
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+STRIP_CODE_COMMENTS    = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+GENERATE_TREEVIEW      = YES

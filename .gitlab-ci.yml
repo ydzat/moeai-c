@@ -1,0 +1,108 @@
+# MoeAI-C GitLab CI/CD 配置文件
+
+stages:
+  - build
+  - test
+  - documentation
+  - deploy
+
+variables:
+  # 设置内核版本，如有需要可在 GitLab CI/CD 设置中覆盖此变量
+  KERNEL_VERSION: "$(uname -r)"
+
+# 通用配置
+.common_setup:
+  before_script:
+    - dnf install -y kernel-devel-${KERNEL_VERSION} kernel-headers-${KERNEL_VERSION} gcc make
+
+# 构建内核模块
+build_module:
+  stage: build
+  extends: .common_setup
+  script:
+    - make clean
+    - make
+  artifacts:
+    paths:
+      - moeai.ko
+    expire_in: 1 week
+  tags:
+    - linux
+
+# 构建命令行工具
+build_cli:
+  stage: build
+  extends: .common_setup
+  script:
+    - mkdir -p build/bin
+    - gcc -Wall -Iinclude cli/moectl.c -o build/bin/moectl
+  artifacts:
+    paths:
+      - build/bin/moectl
+    expire_in: 1 week
+  tags:
+    - linux
+
+# 模块的静态分析
+static_analysis:
+  stage: test
+  extends: .common_setup
+  script:
+    - dnf install -y sparse
+    - make C=1
+  allow_failure: true  # 静态分析可能产生警告但不会导致流水线失败
+  tags:
+    - linux
+
+# 运行单元测试
+unit_tests:
+  stage: test
+  extends: .common_setup
+  script:
+    - cd test
+    - make clean
+    - make
+    - ./test_runner
+  tags:
+    - linux
+  artifacts:
+    paths:
+      - test/test_report.xml
+    reports:
+      junit: test/test_report.xml
+
+# 使用 Doxygen 生成文档
+generate_docs:
+  stage: documentation
+  script:
+    - dnf install -y doxygen graphviz
+    - doxygen Doxyfile || (echo "请先创建 Doxyfile 配置文件"; exit 1)
+  artifacts:
+    paths:
+      - docs/html
+    expire_in: 1 month
+  only:
+    - master  # 或者 main
+  tags:
+    - linux
+
+# 构建 RPM 包 (可选)
+build_rpm:
+  stage: deploy
+  extends: .common_setup
+  script:
+    - dnf install -y rpm-build
+    - mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+    - cp packaging/moeai-c.spec ~/rpmbuild/SPECS/
+    - tar czf ~/rpmbuild/SOURCES/moeai-c.tar.gz --transform 's,^,moeai-c/,' *
+    - rpmbuild -ba ~/rpmbuild/SPECS/moeai-c.spec
+    - cp ~/rpmbuild/RPMS/$(uname -m)/moeai-c-*.rpm .
+  artifacts:
+    paths:
+      - moeai-c-*.rpm
+    expire_in: 1 month
+  only:
+    - tags
+  when: manual  # 手动触发此作业
+  tags:
+    - linux
