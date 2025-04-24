@@ -10,7 +10,7 @@ stages:
 default:
   before_script:
     - export KERNEL_VERSION=$(uname -r)
-    - echo "当前内核版本: ${KERNEL_VERSION}"
+    - echo "Current Kernel Version ${KERNEL_VERSION}"
     - sudo apt-get update || apt-get update
     - sudo apt-get install -y gcc make || apt-get install -y gcc make
 
