@@ -50,12 +50,25 @@ build_module:
         echo "Kernel binary already exists."
       fi
 
-    # Build kernel module first
+    # Build CLI tool first with proper linking
+    - echo "Building CLI tool..."
+    - make cli
+    
+    # Build kernel module
     - echo "Building kernel module..."
     - make qemu-build
     
-    # Then build initramfs using Makefile target
+    # Create device nodes
+    - echo "Creating device nodes..."
+    - mkdir -p testenv/ci_init_fs/dev
+    - mknod testenv/ci_init_fs/dev/console c 5 1 || true
+    - mknod testenv/ci_init_fs/dev/tty0 c 4 0 || true
+    - mknod testenv/ci_init_fs/dev/tty1 c 4 1 || true
+    - mknod testenv/ci_init_fs/dev/null c 1 3 || true
+    
+    # Build initramfs using Makefile target with correct kernel path
     - echo "Building initramfs..."
+    - export QEMU_KERNEL="$(pwd)/kernel-src/linux-${KERNEL_VERSION}/arch/x86/boot/bzImage"
     - make qemu-ci-test
 
   artifacts:
