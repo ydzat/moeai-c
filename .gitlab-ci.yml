@@ -80,59 +80,62 @@ generate_changelog:
   stage: changelog
   script:
     - echo "开始自动生成 CHANGELOG..."
-    # 安装 GitLab CLI - 使用 WakeMeOps 仓库
-    - echo "使用 WakeMeOps 仓库安装 GitLab CLI (glab)..."
-    - apt-get update && apt-get install -y curl ca-certificates gnupg sudo
-    - curl -sSL "https://raw.githubusercontent.com/upciti/wakemeops/main/assets/install_repository" | bash || sudo bash -c 'curl -sSL "https://raw.githubusercontent.com/upciti/wakemeops/main/assets/install_repository" | bash'
-    - apt-get update && apt-get install -y glab || sudo apt-get install -y glab
+    # 安装 GitLab CLI - 使用 WakeMeOps 仓库（已预先安装）
+    - echo "检查 GitLab CLI (glab) 是否已安装..."
+    - which glab && echo "GitLab CLI 已安装" || echo "GitLab CLI 未安装，尝试使用备用方式"
     
-    # 检查 glab 是否成功安装
-    - which glab && echo "成功安装 GitLab CLI" || echo "安装 GitLab CLI 失败，尝试备用方式"
-    
-    # 备用安装方法 - 如果 WakeMeOps 仓库安装失败
-    - if ! which glab > /dev/null; then
-        echo "尝试备用安装方法...";
-        apt-get install -y wget gpg;
-        wget -qO- https://gitlab.com/gitlab-org/cli/-/raw/main/scripts/install.sh | bash -s -- -b /usr/local/bin || echo "备用安装失败";
-      fi
-    # 配置 GitLab CLI 认证 - 可选步骤，根据是否需要认证来决定
+    # 配置 GitLab CLI 认证 - 修复权限问题
     - if [ -n "${GITLAB_TOKEN}" ]; then
         mkdir -p ~/.config/glab-cli;
         echo "token ${GITLAB_TOKEN}" > ~/.config/glab-cli/config.yml;
         echo "host ${CI_SERVER_URL}" >> ~/.config/glab-cli/config.yml;
+        chmod 600 ~/.config/glab-cli/config.yml;
       fi
     
-    # 获取当前版本
-    - VERSION=$(grep -o 'VERSION_STR "[^"]*"' include/core/version.h 2>/dev/null || grep -o 'MOEAI_VERSION_[A-Z]*\s*[0-9]*' include/core/version.h | paste -sd '.' | sed 's/MOEAI_VERSION_//g' || echo "0.1.0-MVP")
+    # 正确地获取当前版本
+    - MAJOR=$(grep -o 'MOEAI_VERSION_MAJOR\s*[0-9]*' include/core/version.h | awk '{print $2}')
+    - MINOR=$(grep -o 'MOEAI_VERSION_MINOR\s*[0-9]*' include/core/version.h | awk '{print $2}')
+    - PATCH=$(grep -o 'MOEAI_VERSION_PATCH\s*[0-9]*' include/core/version.h | awk '{print $2}')
+    - SUFFIX=$(grep -o 'MOEAI_VERSION_SUFFIX\s*"[^"]*"' include/core/version.h | cut -d'"' -f2)
+    - VERSION="${MAJOR}.${MINOR}.${PATCH}${SUFFIX}"
     - echo "当前版本 ${VERSION}"
     
-    # 生成 CHANGELOG
-    - if [ -f "./scripts/generate_changelog.sh" ]; then
-        echo "使用项目脚本生成 CHANGELOG";
-        bash ./scripts/generate_changelog.sh || echo "脚本执行失败，尝试直接生成";
-      fi
-      
-    # 如果脚本执行失败，直接使用 glab 或备用脚本
-    - if [ ! -f "CHANGELOG.md" ]; then
-        echo "直接生成 CHANGELOG";
-        if which glab > /dev/null; then
-          glab changelog generate --version "${VERSION}" > CHANGELOG.md || echo "glab 生成失败";
-        elif [ -f "./glab-cli/bin/glab" ]; then
-          ./glab-cli/bin/glab > CHANGELOG.md;
-        else
-          echo "## MoeAI-C 更新日志" > CHANGELOG.md;
-          echo "### 版本 ${VERSION} - $(date +%Y-%m-%d)" >> CHANGELOG.md;
-          echo "" >> CHANGELOG.md;
-          echo "* 初始 MVP 版本发布 ($(git rev-parse --short HEAD))" >> CHANGELOG.md;
-          echo "* 功能包括：内核模块框架、内存监控、系统接口、用户态工具" >> CHANGELOG.md;
-        fi
-      fi
+    # 直接手动生成 CHANGELOG 文件
+    - echo "生成 CHANGELOG 文件..."
+    - echo "# MoeAI-C 更新日志" > CHANGELOG
+    - echo "" >> CHANGELOG
+    - echo "## ${VERSION} ($(date +%Y-%m-%d))" >> CHANGELOG
+    - echo "" >> CHANGELOG
     
-    - test -f CHANGELOG.md && echo "CHANGELOG.md 已生成" || echo "CHANGELOG.md 生成失败"
-    - if [ ! -f CHANGELOG.md ]; then echo "## MoeAI-C 更新日志\n\n### 版本 ${VERSION} - $(date +%Y-%m-%d)\n\n* 初始版本发布" > CHANGELOG.md; fi
+    # 提取提交信息
+    - echo "### 新功能" >> CHANGELOG
+    - git log --pretty=format:"* %s (%h)" | grep -i -E "(feature|enhancement|feat|新功能)" | grep -v "Merge" | head -10 >> CHANGELOG || echo "* 初始 MVP 功能实现" >> CHANGELOG
+    - echo "" >> CHANGELOG
+    - echo "" >> CHANGELOG
+    
+    - echo "### 错误修复" >> CHANGELOG
+    - git log --pretty=format:"* %s (%h)" | grep -i -E "(fix|bug|修复)" | grep -v "Merge" | head -5 >> CHANGELOG || echo "* 暂无错误修复记录" >> CHANGELOG
+    - echo "" >> CHANGELOG
+    - echo "" >> CHANGELOG
+    
+    - echo "### 维护" >> CHANGELOG
+    - git log --pretty=format:"* %s (%h)" | grep -i -E "(chore|维护|refactor|重构)" | grep -v "Merge" | head -5 >> CHANGELOG || echo "* 初始项目结构设置" >> CHANGELOG
+    - echo "" >> CHANGELOG
+    
+    # 添加基本功能描述
+    - echo "### 功能" >> CHANGELOG
+    - echo "* \`moectl status\` 显示当前系统状态" >> CHANGELOG
+    - echo "* \`moectl set threshold <value>\` 设置内存监控阈值" >> CHANGELOG
+    - echo "* \`moectl reclaim\` 触发内存回收操作" >> CHANGELOG
+    - echo "* 通过 \`/proc/moeai/log\` 查看最近日志记录" >> CHANGELOG
+    - echo "* 通过 \`/proc/moeai/status\` 查看系统状态" >> CHANGELOG
+    - echo "" >> CHANGELOG
+    
+    - cat CHANGELOG || echo "CHANGELOG 文件输出失败"
+    - test -f CHANGELOG && echo "CHANGELOG 已生成" || echo "CHANGELOG 生成失败"
   artifacts:
     paths:
-      - CHANGELOG.md
+      - CHANGELOG
   rules:
     - if: $CI_COMMIT_TAG
       when: always
