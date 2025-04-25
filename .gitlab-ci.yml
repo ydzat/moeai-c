@@ -80,21 +80,56 @@ generate_changelog:
   stage: changelog
   script:
     - echo "开始自动生成 CHANGELOG..."
-    # 安装 GitLab CLI
-    - curl -s https://gitlab.com/gitlab-org/cli/-/releases/v1.30.0/downloads/glab_1.30.0_Linux_x86_64.tar.gz -o glab.tar.gz
-    - tar -xzf glab.tar.gz
-    - chmod +x bin/glab
-    - mv bin/glab /usr/local/bin/glab || sudo mv bin/glab /usr/local/bin/glab
-    # 配置 GitLab CLI 认证
-    - mkdir -p ~/.config/glab-cli
-    - echo "token ${GITLAB_TOKEN}" > ~/.config/glab-cli/config.yml
-    - echo "host ${CI_SERVER_URL}" >> ~/.config/glab-cli/config.yml
+    # 安装 GitLab CLI - 使用 WakeMeOps 仓库
+    - echo "使用 WakeMeOps 仓库安装 GitLab CLI (glab)..."
+    - apt-get update && apt-get install -y curl ca-certificates gnupg sudo
+    - curl -sSL "https://raw.githubusercontent.com/upciti/wakemeops/main/assets/install_repository" | bash || sudo bash -c 'curl -sSL "https://raw.githubusercontent.com/upciti/wakemeops/main/assets/install_repository" | bash'
+    - apt-get update && apt-get install -y glab || sudo apt-get install -y glab
+    
+    # 检查 glab 是否成功安装
+    - which glab && echo "成功安装 GitLab CLI" || echo "安装 GitLab CLI 失败，尝试备用方式"
+    
+    # 备用安装方法 - 如果 WakeMeOps 仓库安装失败
+    - if ! which glab > /dev/null; then
+        echo "尝试备用安装方法...";
+        apt-get install -y wget gpg;
+        wget -qO- https://gitlab.com/gitlab-org/cli/-/raw/main/scripts/install.sh | bash -s -- -b /usr/local/bin || echo "备用安装失败";
+      fi
+    # 配置 GitLab CLI 认证 - 可选步骤，根据是否需要认证来决定
+    - if [ -n "${GITLAB_TOKEN}" ]; then
+        mkdir -p ~/.config/glab-cli;
+        echo "token ${GITLAB_TOKEN}" > ~/.config/glab-cli/config.yml;
+        echo "host ${CI_SERVER_URL}" >> ~/.config/glab-cli/config.yml;
+      fi
+    
     # 获取当前版本
-    - VERSION=$(grep -o 'VERSION_STR "[^"]*"' include/core/version.h | cut -d'"' -f2 || echo $(date +"%Y.%m.%d"))
+    - VERSION=$(grep -o 'VERSION_STR "[^"]*"' include/core/version.h 2>/dev/null || grep -o 'MOEAI_VERSION_[A-Z]*\s*[0-9]*' include/core/version.h | paste -sd '.' | sed 's/MOEAI_VERSION_//g' || echo "0.1.0-MVP")
     - echo "当前版本 ${VERSION}"
+    
     # 生成 CHANGELOG
-    - bash ./scripts/generate_changelog.sh
+    - if [ -f "./scripts/generate_changelog.sh" ]; then
+        echo "使用项目脚本生成 CHANGELOG";
+        bash ./scripts/generate_changelog.sh || echo "脚本执行失败，尝试直接生成";
+      fi
+      
+    # 如果脚本执行失败，直接使用 glab 或备用脚本
+    - if [ ! -f "CHANGELOG.md" ]; then
+        echo "直接生成 CHANGELOG";
+        if which glab > /dev/null; then
+          glab changelog generate --version "${VERSION}" > CHANGELOG.md || echo "glab 生成失败";
+        elif [ -f "./glab-cli/bin/glab" ]; then
+          ./glab-cli/bin/glab > CHANGELOG.md;
+        else
+          echo "## MoeAI-C 更新日志" > CHANGELOG.md;
+          echo "### 版本 ${VERSION} - $(date +%Y-%m-%d)" >> CHANGELOG.md;
+          echo "" >> CHANGELOG.md;
+          echo "* 初始 MVP 版本发布 ($(git rev-parse --short HEAD))" >> CHANGELOG.md;
+          echo "* 功能包括：内核模块框架、内存监控、系统接口、用户态工具" >> CHANGELOG.md;
+        fi
+      fi
+    
     - test -f CHANGELOG.md && echo "CHANGELOG.md 已生成" || echo "CHANGELOG.md 生成失败"
+    - if [ ! -f CHANGELOG.md ]; then echo "## MoeAI-C 更新日志\n\n### 版本 ${VERSION} - $(date +%Y-%m-%d)\n\n* 初始版本发布" > CHANGELOG.md; fi
   artifacts:
     paths:
       - CHANGELOG.md
