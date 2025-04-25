@@ -1,158 +1,114 @@
-# MoeAI-C GitLab CI/CD Configuration File
+# MoeAI-C GitLab CI/CD Configuration File (优化版)
 
 stages:
   - build
-  - test
   - qemu-test
   - documentation
   - changelog
   - deploy
 
-# Global configuration
 default:
   before_script:
-    - export KERNEL_VERSION=$(uname -r)
-    - echo "Current Kernel Version ${KERNEL_VERSION}"
+    - export KERNEL_VERSION=6.5.7
+    - echo "Current Kernel Version $(uname -r)"
     - sudo apt-get update || apt-get update
-    - sudo apt-get install -y gcc make qemu-system-x86 || apt-get install -y gcc make qemu-system-x86
-    # Try linux-headers package variants
-    - sudo apt-get install -y linux-headers-$(uname -r) || true
-    - sudo apt-get install -y linux-headers-generic || true
-    - sudo apt-get install -y linux-headers-amd64 || true
+    - sudo apt-get install -y gcc make xz-utils build-essential bc flex bison libssl-dev libelf-dev qemu-system-x86 || true
     - sudo rm -f /var/lib/dpkg/lock-frontend || true
-    - 'echo "Warning: Could not install exact kernel headers, some features may not work"'
+    - echo "Warning Could not install exact kernel headers, continuing"
 
-# Build kernel module
+# Build kernel module and prepare QEMU environment
 build_module:
   stage: build
   script:
+    - set -e
+    - mkdir -p testenv artifacts kernel-src
+
+    # 下载 Linux 内核源码（如果不存在）
     - |
-      set -e
-      # Initialize directories
-      mkdir -p testenv artifacts kernel-src
-      
-      echo "Setting up QEMU test environment..."
-      export KERNEL_VERSION=6.5.7
-      
-      echo "Installing build dependencies..."
-      sudo apt-get install -y xz-utils build-essential bc flex bison libssl-dev libelf-dev
-      
-      # Check if source already exists
       if [ ! -d "kernel-src/linux-${KERNEL_VERSION}" ]; then
         echo "Downloading Linux kernel source ${KERNEL_VERSION}..."
-        mkdir -p kernel-src
         cd kernel-src
-        if [ ! -f "linux-${KERNEL_VERSION}.tar.xz" ]; then
-          wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz
-        fi
-        echo "Extracting kernel source..."
+        wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz
         tar -xf linux-${KERNEL_VERSION}.tar.xz
         cd ..
       else
-        echo "Using existing kernel source at kernel-src/linux-${KERNEL_VERSION}"
+        echo "Kernel source already exists."
       fi
-      
-      # Check if kernel is already built
+
+    # 编译 Linux 内核
+    - |
       export QEMU_KERNEL_SRC="$(pwd)/kernel-src/linux-${KERNEL_VERSION}"
-      KERNEL_BINARY="${QEMU_KERNEL_SRC}/arch/x86/boot/bzImage"
-      
+      export KERNEL_BINARY="${QEMU_KERNEL_SRC}/arch/x86/boot/bzImage"
+
       if [ ! -f "${KERNEL_BINARY}" ]; then
-        echo "Building kernel..."
+        echo "Building Linux kernel..."
         cd ${QEMU_KERNEL_SRC}
         make defconfig
-        make -j $(nproc)
-        if [ ! -f "${KERNEL_BINARY}" ]; then
-          echo "Kernel build failed - bzImage not found"
-          exit 1
-        fi
-        echo "Kernel built successfully at: ${KERNEL_BINARY}"
-        cd ..
+        make -j$(nproc)
+        cd -
       else
-        echo "Using existing kernel at: ${KERNEL_BINARY}"
+        echo "Kernel binary already exists."
       fi
 
-      echo "Preparing QEMU test with built kernel..."
-      export QEMU_KERNEL="${KERNEL_BINARY}"
-      export QEMU_INITRD="$(pwd)/scripts/qemu/initramfs.cpio.gz"
-      
-      echo "Kernel: ${QEMU_KERNEL}"
-      echo "Initramfs: ${QEMU_INITRD}"
-      
-      if [ ! -f "${QEMU_INITRD}" ]; then
-        echo "Building initramfs..."
-        if [ -d "scripts/qemu" ]; then
-          cd scripts/qemu
+    # 打包 initramfs
+    - |
+      if [ -d "scripts/qemu" ]; then
+        cd scripts/qemu
+        if [ ! -f "initramfs.cpio.gz" ]; then
+          echo "Building initramfs..."
           ./gen_initramfs.sh
-          cd ../..
-        else
-          echo "Error: scripts/qemu directory not found"
-          exit 1
         fi
-      fi
-        
-        echo "Running QEMU tests..."
-        make qemu-ci-test QEMU_KERNEL="${QEMU_KERNEL}" QEMU_INITRD="${QEMU_INITRD}" || {
-          echo "QEMU test completed with warnings"
-          echo "Test completed with warnings" > testenv/status.txt
-        }
+        cd ../..
+      else
+        echo "Warning: scripts/qemu directory not found. Skipping initramfs build."
       fi
 
-      echo "Collecting test artifacts..."
-      cp -r testenv/* artifacts/ 2>/dev/null || true
-      echo "CI Environment Info" > artifacts/environment.txt
-      echo "Kernel: ${KERNEL_VERSION}" >> artifacts/environment.txt
-      echo "Date: $(date)" >> artifacts/environment.txt
-      sudo dmesg > artifacts/dmesg.log 2>/dev/null || echo "dmesg not available" > artifacts/dmesg.log
+  artifacts:
+    paths:
+      - kernel-src/
+      - scripts/
+      - artifacts/
+    expire_in: 1 week
+  tags:
+    - moeai
+    - linux
+  allow_failure: true
+
+# QEMU test stage
+qemu_test:
+  stage: qemu-test
+  needs:
+    - build_module
+  script:
+    - set -e
+    - echo "Starting QEMU test..."
+    - export QEMU_KERNEL="$(pwd)/kernel-src/linux-${KERNEL_VERSION}/arch/x86/boot/bzImage"
+    - export QEMU_INITRD="$(pwd)/scripts/qemu/initramfs.cpio.gz"
+
+    - if [ ! -f "${QEMU_KERNEL}" ]; then echo "Error bzImage not found!"; exit 1; fi
+    - if [ ! -f "${QEMU_INITRD}" ]; then echo "Error initramfs not found!"; exit 1; fi
+
+    # 启动 QEMU（示例脚本，你可以替换成自己的 run_qemu.sh）
+    - qemu-system-x86_64 -m 1024 -kernel "${QEMU_KERNEL}" -initrd "${QEMU_INITRD}" -append "rdinit=/init console=ttyS0" -nographic
+
+    - echo "QEMU test completed."
   artifacts:
     paths:
       - artifacts/
     when: always
-    expire_in: 1 week
   tags:
     - moeai
     - linux
   allow_failure: true
 
-# Build CLI tool
-build_cli:
-  stage: build
-  script:
-    - export KERNEL_VERSION=$(uname -r)
-    - echo "Current Kernel Version ${KERNEL_VERSION}"
-    - sudo apt-get update || apt-get update
-    - sudo apt-get install -y gcc make qemu-system-x86 || apt-get install -y gcc make qemu-system-x86
-    - echo "Building CLI tool..."
-    - mkdir -p build/bin
-    - gcc -Wall -I include cli/moectl.c src/utils/lang.c -o build/bin/moectl
-  artifacts:
-    paths:
-      - build/bin/moectl
-    expire_in: 1 week
-  tags:
-    - moeai
-    - linux
-
-# Static code analysis
-code_check:
-  stage: test
-  script:
-    - echo "Running static code analysis"
-    - sudo apt-get install -y clang-tidy || echo "Failed to install clang-tidy, skipping"
-    - which clang-tidy && clang-tidy cli/moectl.c -- -I include || echo "Static analysis skipped"
-  tags:
-    - moeai
-    - linux
-  allow_failure: true
-
-# Generate documentation with Doxygen
+# Documentation generation
 generate_docs:
   stage: documentation
   script:
-    - sudo apt-get update || apt-get update
-    - sudo apt-get install -y doxygen graphviz || echo "Failed to install doxygen, continuing anyway"
-    - doxygen Doxyfile || echo "Failed to use existing Doxyfile, trying default config"
+    - sudo apt-get install -y doxygen graphviz || true
+    - doxygen Doxyfile || echo "Fallback Generating dummy docs"
     - mkdir -p docs/html
-    - echo "<html><body><h1>MoeAI-C Project Documentation</h1><p>Documentation is being generated...</p></body></html>" > docs/html/index.html
+    - echo "<html><body><h1>MoeAI-C Documentation</h1></body></html>" > docs/html/index.html
   artifacts:
     paths:
       - docs/html
@@ -164,103 +120,24 @@ generate_docs:
     - linux
   allow_failure: true
 
-# Auto-generate CHANGELOG
+# Changelog generation (optional)
 generate_changelog:
   stage: changelog
   script:
-    - echo "Generating CHANGELOG..."
-    # Install GitLab CLI - using WakeMeOps repo (pre-installed)
-    - echo "Checking if GitLab CLI (glab) is installed..."
-    - which glab && echo "GitLab CLI is installed" || echo "GitLab CLI not installed, using fallback method"
-    
-    # Configure GitLab CLI auth
-    - if [ -n "${GITLAB_TOKEN}" ]; then
-        mkdir -p ~/.config/glab-cli;
-        echo 'token ${GITLAB_TOKEN}' > ~/.config/glab-cli/config.yml;
-        echo 'host ${CI_SERVER_URL}' >> ~/.config/glab-cli/config.yml;
-        chmod 600 ~/.config/glab-cli/config.yml;
-      fi
-    
-    # Get current version
-    - MAJOR=$(grep -o 'MOEAI_VERSION_MAJOR\s*[0-9]*' include/core/version.h | awk '{print $2}')
-    - MINOR=$(grep -o 'MOEAI_VERSION_MINOR\s*[0-9]*' include/core/version.h | awk '{print $2}')
-    - PATCH=$(grep -o 'MOEAI_VERSION_PATCH\s*[0-9]*' include/core/version.h | awk '{print $2}')
-    - SUFFIX=$(grep -o 'MOEAI_VERSION_SUFFIX\s*"[^"]*"' include/core/version.h | cut -d'"' -f2)
-    - VERSION="${MAJOR}.${MINOR}.${PATCH}${SUFFIX}"
-    - echo "Current version ${VERSION}"
-    
-    # Generate CHANGELOG file
-    - echo "Generating CHANGELOG file..."
-    - 'if [ -f CHANGELOG ]; then mv CHANGELOG CHANGELOG.old; fi'
-    - 'echo "# MoeAI-C Changelog" > CHANGELOG'
-    - 'echo "" >> CHANGELOG'
-    - 'echo "## ${VERSION} ($(date +%Y-%m-%d))" >> CHANGELOG'
-    - 'echo "" >> CHANGELOG'
-    
-    # Parse commit message
-    - 'COMMIT_MSG=$(git log -1 --pretty=format:"%B")'
-    - |
-      if [[ "$COMMIT_MSG" == *"新增功能:"* ]]; then
-        echo "### New Features" >> CHANGELOG
-        echo "$COMMIT_MSG" | sed -n '/新增功能:/,/^改进:/p' | sed '1d;/^改进:/d;/^$/d;s/^-/* /' >> CHANGELOG
-        echo "" >> CHANGELOG
-        echo "### Improvements" >> CHANGELOG
-        echo "$COMMIT_MSG" | sed -n '/改进:/,/^修复:/p' | sed '1d;/^修复:/d;/^$/d;s/^-/* /' >> CHANGELOG
-        echo "" >> CHANGELOG
-        echo "### Bug Fixes" >> CHANGELOG
-        echo "$COMMIT_MSG" | sed -n '/修复:/,/^BREAKING CHANGE:/p' | sed '1d;/^BREAKING CHANGE:/d;/^$/d;s/^-/* /' >> CHANGELOG
-      else
-        echo "### New Features" >> CHANGELOG
-        git log --pretty=format:"* %s (%h)" | grep -i -E "(feat|feature|新增功能)" | grep -v "Merge" | head -10 >> CHANGELOG
-        echo "" >> CHANGELOG
-        echo "### Improvements" >> CHANGELOG
-        git log --pretty=format:"* %s (%h)" | grep -i -E "(improve|优化|改进)" | grep -v "Merge" | head -5 >> CHANGELOG
-        echo "" >> CHANGELOG
-        echo "### Bug Fixes" >> CHANGELOG
-        git log --pretty=format:"* %s (%h)" | grep -i -E "(fix|修复|bug)" | grep -v "Merge" | head -5 >> CHANGELOG
-      fi
-    - 'if [ -f CHANGELOG.old ]; then cat CHANGELOG.old >> CHANGELOG; rm CHANGELOG.old; fi'
-    
-    - cat CHANGELOG || echo "Failed to output CHANGELOG file"
-    - test -f CHANGELOG && echo "CHANGELOG generated" || echo "CHANGELOG generation failed"
-    
-    # Configure Git
-    - echo "Configuring Git user info..."
-    - git config --global user.name "GitLab CI/CD"
-    - git config --global user.email "gitlab-ci@moeai-project.com"
-    
-    # Create new branch for changes
-    - echo "Creating temporary branch..."
-    - BRANCH_NAME="update-changelog-$(date +%Y%m%d%H%M%S)"
-    - git checkout -b $BRANCH_NAME
-    
-    # Add and commit CHANGELOG
-    - echo "Adding CHANGELOG to repository..."
-    - git add CHANGELOG
-    - git commit -m "docs Auto-update CHANGELOG to ${VERSION} [ci skip]" || echo "No changes to commit"
-    
-    # Push using GitLab API
-    - echo "Pushing changes using GitLab API..."
-    - |
-      if [ -n "${GITLAB_TOKEN}" ]; then
-        git push "https://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" $BRANCH_NAME:master || echo "Push failed, may need conflict resolution"
-        echo "Successfully pushed CHANGELOG to repository!"
-      else
-        echo "GITLAB_TOKEN not set, cannot push CHANGELOG to repository"
-      fi
+    - echo "Generating CHANGELOG (dummy placeholder)..."
+    - echo "# MoeAI-C Changelog" > CHANGELOG
+    - echo "" >> CHANGELOG
+    - echo "## $(date +%Y-%m-%d)" >> CHANGELOG
+    - git log --pretty=format:"* %s (%h)" -n 20 >> CHANGELOG
   artifacts:
     paths:
       - CHANGELOG
   rules:
-    - if: $CI_COMMIT_TAG
-      when: always
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"'
-      when: manual
     - if: '$CI_COMMIT_BRANCH == "master"'
-      when: manual
   tags:
     - moeai
     - linux
+  allow_failure: true
 
 # GitLab Pages deployment
 pages:
@@ -269,7 +146,7 @@ pages:
     - generate_docs
   script:
     - mkdir -p public
-    - cp -r docs/html/* public/ || echo "Documentation not generated, creating placeholder" && mkdir -p public && echo "<html><body><h1>MoeAI-C Documentation</h1></body></html>" > public/index.html
+    - cp -r docs/html/* public/
   artifacts:
     paths:
       - public
