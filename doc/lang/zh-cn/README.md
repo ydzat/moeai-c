@@ -1,6 +1,6 @@
 # MoeAI-C
 
-*其他语言版本: [English](doc/lang/en/README.md), [Deutsch](doc/lang/de/README.md)*
+*其他语言版本: [English](README.en.md), [Deutsch](README.de.md)*
 
 ## 项目简介
 
