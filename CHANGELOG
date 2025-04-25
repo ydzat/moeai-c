@@ -3,7 +3,7 @@
 ## 0.1.0-MVP (2025-04-25)
 
 ### 新功能
-* 初始 MVP 功能实现
+* feature: add multi-language support (4e5b91b)
 
 ### 错误修复
 * fix: CI/CD process 3 (b740462)
