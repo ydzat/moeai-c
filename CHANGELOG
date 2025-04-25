@@ -1,23 +1,25 @@
-# MoeAI-C 更新日志
+# MoeAI-C Changelog
 
-## 0.1.0-MVP (2025-04-25)
+## 0.2.0-MVP (2025-04-26)
 
-### 新功能
+### New Features
+* feat(release): 升级到 0.2.0 版本 (79d7de2)
+* feat(release): 升级到 0.2.0 版本 (7a75a2e)
+* feat(release): 升级到 0.2.0 版本 (8030460)
 * feature: add multi-language support (4e5b91b)
 
-### 错误修复
+### Bug Fixes
 * fix: CI/CD process 3 (b740462)
 * fix: CI/CD process 2 (8a37550)
 * fix: CI/CD process 1 (24b0f09)
 * fix: CI/CD process (d5e460b)
-* fix: CI/CD autho (f54e664)
 
-### 维护
-* 初始项目结构设置
+### Maintenance
+* Initial project structure setup
 
-### 功能
-* `moectl status` - 显示当前系统状态
-* `moectl set threshold <value>` - 设置内存监控阈值
-* `moectl reclaim` - 触发内存回收操作
-* 通过 `/proc/moeai/log` 查看最近日志记录
-* 通过 `/proc/moeai/status` 查看系统状态
+### Features
+* `moectl status` - Show current system status
+* `moectl set threshold <value>` - Set memory monitoring threshold
+* `moectl reclaim` - Trigger memory reclamation
+* View recent logs via `/proc/moeai/log`
+* View system status via `/proc/moeai/status`
