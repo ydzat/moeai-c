@@ -50,18 +50,13 @@ build_module:
         echo "Kernel binary already exists."
       fi
 
-    # 打包 initramfs
-    - |
-      if [ -d "scripts/qemu" ]; then
-        cd scripts/qemu
-        if [ ! -f "initramfs.cpio.gz" ]; then
-          echo "Building initramfs..."
-          ./gen_initramfs.sh
-        fi
-        cd ../..
-      else
-        echo "Warning: scripts/qemu directory not found. Skipping initramfs build."
-      fi
+    # Build kernel module first
+    - echo "Building kernel module..."
+    - make qemu-build
+    
+    # Then build initramfs using Makefile target
+    - echo "Building initramfs..."
+    - make qemu-ci-test
 
   artifacts:
     paths:
