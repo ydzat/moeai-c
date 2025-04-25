@@ -87,8 +87,8 @@ generate_changelog:
     # 配置 GitLab CLI 认证 - 修复权限问题
     - if [ -n "${GITLAB_TOKEN}" ]; then
         mkdir -p ~/.config/glab-cli;
-        echo "token ${GITLAB_TOKEN}" > ~/.config/glab-cli/config.yml;
-        echo "host ${CI_SERVER_URL}" >> ~/.config/glab-cli/config.yml;
+        echo 'token ${GITLAB_TOKEN}' > ~/.config/glab-cli/config.yml;
+        echo 'host ${CI_SERVER_URL}' >> ~/.config/glab-cli/config.yml;
         chmod 600 ~/.config/glab-cli/config.yml;
       fi
     
@@ -102,37 +102,70 @@ generate_changelog:
     
     # 直接手动生成 CHANGELOG 文件
     - echo "生成 CHANGELOG 文件..."
-    - echo "# MoeAI-C 更新日志" > CHANGELOG
-    - echo "" >> CHANGELOG
-    - echo "## ${VERSION} ($(date +%Y-%m-%d))" >> CHANGELOG
-    - echo "" >> CHANGELOG
+    - |
+      cat > CHANGELOG << EOF
+      # MoeAI-C 更新日志
+
+      ## ${VERSION} ($(date +%Y-%m-%d))
+
+      ### 新功能
+      EOF
     
     # 提取提交信息
-    - echo "### 新功能" >> CHANGELOG
     - git log --pretty=format:"* %s (%h)" | grep -i -E "(feature|enhancement|feat|新功能)" | grep -v "Merge" | head -10 >> CHANGELOG || echo "* 初始 MVP 功能实现" >> CHANGELOG
-    - echo "" >> CHANGELOG
-    - echo "" >> CHANGELOG
-    
-    - echo "### 错误修复" >> CHANGELOG
+    - |
+      cat >> CHANGELOG << EOF
+
+      ### 错误修复
+      EOF
     - git log --pretty=format:"* %s (%h)" | grep -i -E "(fix|bug|修复)" | grep -v "Merge" | head -5 >> CHANGELOG || echo "* 暂无错误修复记录" >> CHANGELOG
-    - echo "" >> CHANGELOG
-    - echo "" >> CHANGELOG
-    
-    - echo "### 维护" >> CHANGELOG
+    - |
+      cat >> CHANGELOG << EOF
+
+      ### 维护
+      EOF
     - git log --pretty=format:"* %s (%h)" | grep -i -E "(chore|维护|refactor|重构)" | grep -v "Merge" | head -5 >> CHANGELOG || echo "* 初始项目结构设置" >> CHANGELOG
-    - echo "" >> CHANGELOG
     
     # 添加基本功能描述
-    - echo "### 功能" >> CHANGELOG
-    - echo "* \`moectl status\` 显示当前系统状态" >> CHANGELOG
-    - echo "* \`moectl set threshold <value>\` 设置内存监控阈值" >> CHANGELOG
-    - echo "* \`moectl reclaim\` 触发内存回收操作" >> CHANGELOG
-    - echo "* 通过 \`/proc/moeai/log\` 查看最近日志记录" >> CHANGELOG
-    - echo "* 通过 \`/proc/moeai/status\` 查看系统状态" >> CHANGELOG
-    - echo "" >> CHANGELOG
+    - |
+      cat >> CHANGELOG << EOF
+
+      ### 功能
+      * \`moectl status\` - 显示当前系统状态
+      * \`moectl set threshold <value>\` - 设置内存监控阈值
+      * \`moectl reclaim\` - 触发内存回收操作
+      * 通过 \`/proc/moeai/log\` 查看最近日志记录
+      * 通过 \`/proc/moeai/status\` 查看系统状态
+      EOF
     
     - cat CHANGELOG || echo "CHANGELOG 文件输出失败"
     - test -f CHANGELOG && echo "CHANGELOG 已生成" || echo "CHANGELOG 生成失败"
+    
+    # 配置 Git 提交
+    - echo "配置 Git 用户信息..."
+    - git config --global user.name "GitLab CI/CD"
+    - git config --global user.email "gitlab-ci@moeai-project.com"
+    
+    # 创建一个新分支来提交更改
+    - echo "创建临时分支..."
+    - BRANCH_NAME="update-changelog-$(date +%Y%m%d%H%M%S)"
+    - git checkout -b $BRANCH_NAME
+    
+    # 添加和提交 CHANGELOG
+    - echo "添加 CHANGELOG 到仓库..."
+    - git add CHANGELOG
+    - git commit -m "docs 自动更新 CHANGELOG 至 ${VERSION} [ci skip]" || echo "没有变更需要提交"
+    
+    # 使用 GitLab API 进行推送
+    - echo "使用 GitLab API 推送更改到仓库..."
+    - |
+      if [ -n "${GITLAB_TOKEN}" ]; then
+        # 使用 curl 和 GitLab API 推送更改
+        git push "https://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" $BRANCH_NAME:master || echo "推送失败，可能需要解决冲突"
+        echo "已成功推送 CHANGELOG 到仓库！"
+      else
+        echo "未设置 GITLAB_TOKEN，无法推送 CHANGELOG 到仓库"
+      fi
   artifacts:
     paths:
       - CHANGELOG
