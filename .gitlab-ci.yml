@@ -4,6 +4,7 @@ stages:
   - build
   - test
   - documentation
+  - changelog
   - deploy
 
 # 全局配置
@@ -73,6 +74,40 @@ generate_docs:
     - moeai
     - linux
   allow_failure: true
+
+# 自动生成 CHANGELOG
+generate_changelog:
+  stage: changelog
+  script:
+    - echo "开始自动生成 CHANGELOG..."
+    # 安装 GitLab CLI
+    - curl -s https://gitlab.com/gitlab-org/cli/-/releases/v1.30.0/downloads/glab_1.30.0_Linux_x86_64.tar.gz -o glab.tar.gz
+    - tar -xzf glab.tar.gz
+    - chmod +x bin/glab
+    - mv bin/glab /usr/local/bin/glab || sudo mv bin/glab /usr/local/bin/glab
+    # 配置 GitLab CLI 认证
+    - mkdir -p ~/.config/glab-cli
+    - echo "token ${GITLAB_TOKEN}" > ~/.config/glab-cli/config.yml
+    - echo "host ${CI_SERVER_URL}" >> ~/.config/glab-cli/config.yml
+    # 获取当前版本
+    - VERSION=$(grep -o 'VERSION_STR "[^"]*"' include/core/version.h | cut -d'"' -f2 || echo $(date +"%Y.%m.%d"))
+    - echo "当前版本 ${VERSION}"
+    # 生成 CHANGELOG
+    - bash ./scripts/generate_changelog.sh
+    - test -f CHANGELOG.md && echo "CHANGELOG.md 已生成" || echo "CHANGELOG.md 生成失败"
+  artifacts:
+    paths:
+      - CHANGELOG.md
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"'
+      when: manual
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: manual
+  tags:
+    - moeai
+    - linux
 
 # 添加 GitLab Pages 支持
 pages:

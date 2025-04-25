@@ -1,0 +1,28 @@
+---
+categories:
+  - title: "新功能"
+    labels:
+      - "feature"
+      - "enhancement"
+  - title: "错误修复"
+    labels:
+      - "bug"
+      - "bugfix"
+  - title: "维护"
+    labels:
+      - "chore"
+      - "maintenance"
+  - title: "文档"
+    labels:
+      - "documentation"
+  - title: "依赖升级"
+    labels:
+      - "dependencies"
+template: |
+  ## {{.Version}} ({{.Date}})
+  {{range .Categories}}
+  ### {{.Title}}
+  {{range .Entries}}
+  * {{.Message}} ({{.Commit.ShortSHA}})
+  {{end}}
+  {{end}}
