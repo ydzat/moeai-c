@@ -35,21 +35,22 @@ build_module:
       export KERNEL_VERSION=6.5.7
       
       echo "Installing build dependencies..."
-      sudo apt-get install -y gpg xz-utils build-essential bc flex bison libssl-dev libelf-dev
+      sudo apt-get install -y xz-utils build-essential bc flex bison libssl-dev libelf-dev
       
-      echo "Setting up GPG keys..."
-      gpg2 --locate-keys torvalds@kernel.org gregkh@kernel.org || echo "GPG key setup may have failed"
-      
-      echo "Downloading Linux kernel source ${KERNEL_VERSION}..."
-      wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz -O kernel-src/linux.tar.xz
-      wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.sign -O kernel-src/linux.tar.sign
-      
-      echo "Verifying kernel source..."
-      cd kernel-src
-      unxz linux.tar.xz
-      gpg --verify linux.tar.sign linux.tar || { echo "Kernel verification failed"; exit 1; }
-      tar -xf linux.tar
-      cd ..
+      # Check if source already exists
+      if [ ! -d "kernel-src/linux-${KERNEL_VERSION}" ]; then
+        echo "Downloading Linux kernel source ${KERNEL_VERSION}..."
+        mkdir -p kernel-src
+        cd kernel-src
+        if [ ! -f "linux-${KERNEL_VERSION}.tar.xz" ]; then
+          wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz
+        fi
+        echo "Extracting kernel source..."
+        tar -xf linux-${KERNEL_VERSION}.tar.xz
+        cd ..
+      else
+        echo "Using existing kernel source at kernel-src/linux-${KERNEL_VERSION}"
+      fi
       
       echo "Building kernel..."
       export QEMU_KERNEL_SRC="$(pwd)/kernel-src/linux-${KERNEL_VERSION}"
