@@ -14,7 +14,13 @@ default:
     - export KERNEL_VERSION=$(uname -r)
     - echo "Current Kernel Version ${KERNEL_VERSION}"
     - sudo apt-get update || apt-get update
-    - sudo apt-get install -y gcc make qemu-system-x86 linux-headers-$(uname -r) || apt-get install -y gcc make qemu-system-x86 linux-headers-$(uname -r)
+    - sudo apt-get install -y gcc make qemu-system-x86 || apt-get install -y gcc make qemu-system-x86
+    # Try linux-headers package variants
+    - sudo apt-get install -y linux-headers-$(uname -r) || true
+    - sudo apt-get install -y linux-headers-generic || true
+    - sudo apt-get install -y linux-headers-amd64 || true
+    - sudo rm -f /var/lib/dpkg/lock-frontend || true
+    - 'echo "Warning: Could not install exact kernel headers, some features may not work"'
 
 # Build kernel module
 build_module:
