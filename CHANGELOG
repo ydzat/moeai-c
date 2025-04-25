@@ -17,21 +17,16 @@
 ### Bug Fixes
 *  修复了内存泄漏问题
 *  解决了并发操作下的竞态条件
+
 # MoeAI-C Changelog
 
-## 0.2.0-MVP (2025-04-26)
+## 0.1.0-MVP (2025-04-24)
 
 ### New Features
-* feat(release): 升级到 0.2.0 版本 (79d7de2)
-* feat(release): 升级到 0.2.0 版本 (7a75a2e)
-* feat(release): 升级到 0.2.0 版本 (8030460)
-* feature: add multi-language support (4e5b91b)
+* feat(release): 升级到 0.1.0 版本
 
 ### Bug Fixes
-* fix: CI/CD process 3 (b740462)
-* fix: CI/CD process 2 (8a37550)
-* fix: CI/CD process 1 (24b0f09)
-* fix: CI/CD process (d5e460b)
+* fix: CI/CD process
 
 ### Maintenance
 * Initial project structure setup
