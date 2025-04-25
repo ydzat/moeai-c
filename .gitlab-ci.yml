@@ -1,38 +1,39 @@
-# MoeAI-C GitLab CI/CD 配置文件
+# MoeAI-C GitLab CI/CD Configuration File
 
 stages:
   - build
   - test
+  - qemu-test
   - documentation
   - changelog
   - deploy
 
-# 全局配置
+# Global configuration
 default:
   before_script:
     - export KERNEL_VERSION=$(uname -r)
     - echo "Current Kernel Version ${KERNEL_VERSION}"
     - sudo apt-get update || apt-get update
-    - sudo apt-get install -y gcc make || apt-get install -y gcc make
+    - sudo apt-get install -y gcc make qemu-system-x86 || apt-get install -y gcc make qemu-system-x86
 
-# 构建内核模块
+# Build kernel module
 build_module:
   stage: build
   script:
-    - echo "尝试构建内核模块..."
-    - mkdir -p build/obj
-    - gcc -c src/utils/*.c -I include -o build/obj/utils.o || echo "编译工具函数失败，但继续执行"
-    - echo "模块编译暂时跳过，在本地开发环境完成"
+    - echo "Building kernel module..."
+    # Using CI-specific build target
+    - make ci-build
+    - echo "Note Full kernel module cannot be built in CI environment, will be completed in local dev environment"
   tags:
     - moeai
     - linux
   allow_failure: true
 
-# 构建命令行工具
+# Build CLI tool
 build_cli:
   stage: build
   script:
-    - echo "构建命令行工具..."
+    - echo "Building CLI tool..."
     - mkdir -p build/bin
     - gcc -Wall -I include cli/moectl.c -o build/bin/moectl
   artifacts:
@@ -43,27 +44,27 @@ build_cli:
     - moeai
     - linux
 
-# 静态代码检查
+# Static code analysis
 code_check:
   stage: test
   script:
-    - echo "执行静态代码检查"
-    - sudo apt-get install -y clang-tidy || echo "无法安装 clang-tidy，跳过"
-    - which clang-tidy && clang-tidy cli/moectl.c -- -I include || echo "静态检查跳过"
+    - echo "Running static code analysis"
+    - sudo apt-get install -y clang-tidy || echo "Failed to install clang-tidy, skipping"
+    - which clang-tidy && clang-tidy cli/moectl.c -- -I include || echo "Static analysis skipped"
   tags:
     - moeai
     - linux
   allow_failure: true
 
-# 使用 Doxygen 生成文档
+# Generate documentation with Doxygen
 generate_docs:
   stage: documentation
   script:
     - sudo apt-get update || apt-get update
-    - sudo apt-get install -y doxygen graphviz || echo "无法安装 doxygen，尝试继续"
-    - doxygen Doxyfile || echo "使用现有Doxyfile失败，尝试使用默认配置"
+    - sudo apt-get install -y doxygen graphviz || echo "Failed to install doxygen, continuing anyway"
+    - doxygen Doxyfile || echo "Failed to use existing Doxyfile, trying default config"
     - mkdir -p docs/html
-    - echo "<html><body><h1>MoeAI-C 项目文档</h1><p>正在构建中...</p></body></html>" > docs/html/index.html
+    - echo "<html><body><h1>MoeAI-C Project Documentation</h1><p>Documentation is being generated...</p></body></html>" > docs/html/index.html
   artifacts:
     paths:
       - docs/html
@@ -75,16 +76,16 @@ generate_docs:
     - linux
   allow_failure: true
 
-# 自动生成 CHANGELOG
+# Auto-generate CHANGELOG
 generate_changelog:
   stage: changelog
   script:
-    - echo "开始自动生成 CHANGELOG..."
-    # 安装 GitLab CLI - 使用 WakeMeOps 仓库（已预先安装）
-    - echo "检查 GitLab CLI (glab) 是否已安装..."
-    - which glab && echo "GitLab CLI 已安装" || echo "GitLab CLI 未安装，尝试使用备用方式"
+    - echo "Generating CHANGELOG..."
+    # Install GitLab CLI - using WakeMeOps repo (pre-installed)
+    - echo "Checking if GitLab CLI (glab) is installed..."
+    - which glab && echo "GitLab CLI is installed" || echo "GitLab CLI not installed, using fallback method"
     
-    # 配置 GitLab CLI 认证 - 修复权限问题
+    # Configure GitLab CLI auth
     - if [ -n "${GITLAB_TOKEN}" ]; then
         mkdir -p ~/.config/glab-cli;
         echo 'token ${GITLAB_TOKEN}' > ~/.config/glab-cli/config.yml;
@@ -92,79 +93,78 @@ generate_changelog:
         chmod 600 ~/.config/glab-cli/config.yml;
       fi
     
-    # 正确地获取当前版本
+    # Get current version
     - MAJOR=$(grep -o 'MOEAI_VERSION_MAJOR\s*[0-9]*' include/core/version.h | awk '{print $2}')
     - MINOR=$(grep -o 'MOEAI_VERSION_MINOR\s*[0-9]*' include/core/version.h | awk '{print $2}')
     - PATCH=$(grep -o 'MOEAI_VERSION_PATCH\s*[0-9]*' include/core/version.h | awk '{print $2}')
     - SUFFIX=$(grep -o 'MOEAI_VERSION_SUFFIX\s*"[^"]*"' include/core/version.h | cut -d'"' -f2)
     - VERSION="${MAJOR}.${MINOR}.${PATCH}${SUFFIX}"
-    - echo "当前版本 ${VERSION}"
+    - echo "Current version ${VERSION}"
     
-    # 直接手动生成 CHANGELOG 文件
-    - echo "生成 CHANGELOG 文件..."
+    # Generate CHANGELOG file
+    - echo "Generating CHANGELOG file..."
     - |
       cat > CHANGELOG << EOF
-      # MoeAI-C 更新日志
+      # MoeAI-C Changelog
 
       ## ${VERSION} ($(date +%Y-%m-%d))
 
-      ### 新功能
+      ### New Features
       EOF
     
-    # 提取提交信息
-    - git log --pretty=format:"* %s (%h)" | grep -i -E "(feature|enhancement|feat|新功能)" | grep -v "Merge" | head -10 >> CHANGELOG || echo "* 初始 MVP 功能实现" >> CHANGELOG
+    # Extract commit messages
+    - git log --pretty=format:"* %s (%h)" | grep -i -E "(feature|enhancement|feat)" | grep -v "Merge" | head -10 >> CHANGELOG || echo "* Initial MVP feature implementation" >> CHANGELOG
     - |
       cat >> CHANGELOG << EOF
 
-      ### 错误修复
+      ### Bug Fixes
       EOF
-    - git log --pretty=format:"* %s (%h)" | grep -i -E "(fix|bug|修复)" | grep -v "Merge" | head -5 >> CHANGELOG || echo "* 暂无错误修复记录" >> CHANGELOG
+    - git log --pretty=format:"* %s (%h)" | grep -i -E "(fix|bug)" | grep -v "Merge" | head -5 >> CHANGELOG || echo "* No bug fixes recorded" >> CHANGELOG
     - |
       cat >> CHANGELOG << EOF
 
-      ### 维护
+      ### Maintenance
       EOF
-    - git log --pretty=format:"* %s (%h)" | grep -i -E "(chore|维护|refactor|重构)" | grep -v "Merge" | head -5 >> CHANGELOG || echo "* 初始项目结构设置" >> CHANGELOG
+    - git log --pretty=format:"* %s (%h)" | grep -i -E "(chore|refactor)" | grep -v "Merge" | head -5 >> CHANGELOG || echo "* Initial project structure setup" >> CHANGELOG
     
-    # 添加基本功能描述
+    # Add basic feature descriptions
     - |
       cat >> CHANGELOG << EOF
 
-      ### 功能
-      * \`moectl status\` - 显示当前系统状态
-      * \`moectl set threshold <value>\` - 设置内存监控阈值
-      * \`moectl reclaim\` - 触发内存回收操作
-      * 通过 \`/proc/moeai/log\` 查看最近日志记录
-      * 通过 \`/proc/moeai/status\` 查看系统状态
+      ### Features
+      * \`moectl status\` - Show current system status
+      * \`moectl set threshold <value>\` - Set memory monitoring threshold
+      * \`moectl reclaim\` - Trigger memory reclamation
+      * View recent logs via \`/proc/moeai/log\`
+      * View system status via \`/proc/moeai/status\`
       EOF
     
-    - cat CHANGELOG || echo "CHANGELOG 文件输出失败"
-    - test -f CHANGELOG && echo "CHANGELOG 已生成" || echo "CHANGELOG 生成失败"
+    - cat CHANGELOG || echo "Failed to output CHANGELOG file"
+    - test -f CHANGELOG && echo "CHANGELOG generated" || echo "CHANGELOG generation failed"
     
-    # 配置 Git 提交
-    - echo "配置 Git 用户信息..."
+    # Configure Git
+    - echo "Configuring Git user info..."
     - git config --global user.name "GitLab CI/CD"
     - git config --global user.email "gitlab-ci@moeai-project.com"
     
-    # 创建一个新分支来提交更改
-    - echo "创建临时分支..."
+    # Create new branch for changes
+    - echo "Creating temporary branch..."
     - BRANCH_NAME="update-changelog-$(date +%Y%m%d%H%M%S)"
     - git checkout -b $BRANCH_NAME
     
-    # 添加和提交 CHANGELOG
-    - echo "添加 CHANGELOG 到仓库..."
+    # Add and commit CHANGELOG
+    - echo "Adding CHANGELOG to repository..."
     - git add CHANGELOG
-    - git commit -m "docs 自动更新 CHANGELOG 至 ${VERSION} [ci skip]" || echo "没有变更需要提交"
+    - git commit -m "docs Auto-update CHANGELOG to ${VERSION} [ci skip]" || echo "No changes to commit"
     
-    # 使用 GitLab API 进行推送
-    - echo "使用 GitLab API 推送更改到仓库..."
+    # Push using GitLab API
+    - echo "Pushing changes using GitLab API..."
     - |
       if [ -n "${GITLAB_TOKEN}" ]; then
-        # 使用 curl 和 GitLab API 推送更改
-        git push "https://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" $BRANCH_NAME:master || echo "推送失败，可能需要解决冲突"
-        echo "已成功推送 CHANGELOG 到仓库！"
+        git push "https://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" $BRANCH_NAME:master || echo "Push failed, may need conflict resolution"
+        echo "Successfully pushed CHANGELOG to repository!"
       else
-        echo "未设置 GITLAB_TOKEN，无法推送 CHANGELOG 到仓库"
+        echo "GITLAB_TOKEN not set, cannot push CHANGELOG to repository"
       fi
   artifacts:
     paths:
@@ -180,14 +180,14 @@ generate_changelog:
     - moeai
     - linux
 
-# 添加 GitLab Pages 支持
+# GitLab Pages deployment
 pages:
   stage: deploy
   dependencies:
     - generate_docs
   script:
     - mkdir -p public
-    - cp -r docs/html/* public/ || echo "文档未生成，创建空页面" && mkdir -p public && echo "<html><body><h1>MoeAI-C Documentation</h1></body></html>" > public/index.html
+    - cp -r docs/html/* public/ || echo "Documentation not generated, creating placeholder" && mkdir -p public && echo "<html><body><h1>MoeAI-C Documentation</h1></body></html>" > public/index.html
   artifacts:
     paths:
       - public

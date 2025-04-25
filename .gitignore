@@ -34,3 +34,9 @@ modules.order
 .vscode/
 .idea/
 *.code-workspace
+
+# 生成配置文件
+.config.mk
+
+# 生成环境
+/testenv/

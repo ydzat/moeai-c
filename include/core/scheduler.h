@@ -17,7 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 
-#include "core/module.h"
+#include "./module.h"
 
 /* 事件类型枚举 */
 enum moeai_event_type {

@@ -14,7 +14,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
-#include "core/state.h"
+#include "./state.h"
 
 /* 定义模块状态枚举 */
 enum moeai_module_state {

@@ -16,6 +16,7 @@
 #include <linux/stdarg.h>
 #include "../../include/utils/logger.h"
 #include "../../include/utils/ring_buffer.h"
+#include "../../include/utils/lang.h"
 
 /* 日志缓冲区大小 */
 #define MOEAI_LOG_BUFFER_SIZE 100
@@ -54,12 +55,13 @@ int moeai_logger_init(bool debug_mode)
     );
     
     if (!moeai_logger_ctx.log_buffer) {
-        pr_err("MoeAI-C: 无法创建日志缓冲区\n");
+        pr_err("%s\n", lang_get(LANG_LOG_BUFFER_CREATE_FAILED));
         return -ENOMEM;
     }
     
-    pr_info("MoeAI-C: 日志系统初始化成功，调试模式: %s\n", 
-            debug_mode ? "开启" : "关闭");
+    pr_info("%s, debug mode: %s\n", 
+            lang_get(LANG_LOG_INIT_SUCCESS),
+            debug_mode ? lang_get(LANG_DEBUG_MODE_ENABLED) : lang_get(LANG_DEBUG_MODE_DISABLED));
     
     return 0;
 }
@@ -74,7 +76,7 @@ void moeai_logger_exit(void)
         moeai_logger_ctx.log_buffer = NULL;
     }
     
-    pr_info("MoeAI-C: 日志系统已清理\n");
+    pr_info("%s\n", lang_get(LANG_LOG_EXIT_COMPLETE));
 }
 
 /**
@@ -143,7 +145,7 @@ void moeai_log(enum moeai_log_level level, const char *module, const char *fmt, 
         spin_unlock(&moeai_logger_ctx.buffer_lock);
         
         if (ret)
-            printk(KERN_WARNING "MoeAI-C: 无法写入日志缓冲区，错误码: %d\n", ret);
+            printk(KERN_WARNING "%s: %d\n", lang_get(LANG_LOG_BUFFER_WRITE_FAILED), ret);
     }
 }
 

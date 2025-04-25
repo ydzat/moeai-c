@@ -21,6 +21,7 @@
 #include <linux/writeback.h>
 #include "../../include/modules/mem_monitor.h"
 #include "../../include/utils/logger.h"
+#include "../../include/utils/lang.h"
 
 /* 模块名称 */
 #define MODULE_NAME "mem_monitor"
@@ -84,7 +85,7 @@ int moeai_mem_monitor_get_stats(struct moeai_mem_stats *stats)
  */
 static long drop_page_cache(void)
 {
-    MOEAI_INFO(MODULE_NAME, "释放页面缓存");
+    MOEAI_INFO(MODULE_NAME, lang_get(LANG_MEM_RELEASE_PAGE_CACHE));
     /* 由于无法直接访问内核内存管理函数，使用间接方法 */
     /* 在实际应用中，应该通过 sysfs/procfs 接口操作，例如写入 /proc/sys/vm/drop_caches */
     sync_inodes_sb(NULL);  /* 同步文件系统元数据 */
@@ -96,7 +97,7 @@ static long drop_page_cache(void)
  */
 static long drop_slab_cache(void)
 {
-    MOEAI_INFO(MODULE_NAME, "释放slab缓存");
+    MOEAI_INFO(MODULE_NAME, lang_get(LANG_MEM_RELEASE_SLAB_CACHE));
     /* 实际应用中应该使用 kmem_cache_shrink 对各个 slab 进行收缩 */
     /* 这里仅返回一个示意值 */
     return 0;
@@ -114,28 +115,28 @@ long moeai_mem_reclaim(enum moeai_mem_reclaim_policy policy)
     switch (policy) {
     case MOEAI_MEM_RECLAIM_GENTLE:
         /* 仅释放文件缓存 */
-        MOEAI_INFO(MODULE_NAME, "执行温和内存回收");
+        MOEAI_INFO(MODULE_NAME, lang_get(LANG_MEM_GENTLE_RECLAIM));
         reclaimed = drop_page_cache();
         break;
         
     case MOEAI_MEM_RECLAIM_MODERATE:
         /* 释放所有可回收页面 */
-        MOEAI_INFO(MODULE_NAME, "执行中等强度内存回收");
+        MOEAI_INFO(MODULE_NAME, lang_get(LANG_MEM_MODERATE_RECLAIM));
         reclaimed = drop_page_cache();
         reclaimed += drop_slab_cache();
         break;
         
     case MOEAI_MEM_RECLAIM_AGGRESSIVE:
         /* 强制内存紧急回收，可能触发OOM */
-        MOEAI_INFO(MODULE_NAME, "执行积极内存回收");
+        MOEAI_INFO(MODULE_NAME, lang_get(LANG_MEM_AGGRESSIVE_RECLAIM));
         reclaimed = drop_page_cache();
         reclaimed += drop_slab_cache();
         /* 注意：compact_nodes 函数在当前内核中不可用 */
-        MOEAI_INFO(MODULE_NAME, "内存压缩操作在当前内核中不支持");
+        MOEAI_INFO(MODULE_NAME, lang_get(LANG_MEM_COMPACT_NOT_SUPPORTED));
         break;
         
     default:
-        MOEAI_ERROR(MODULE_NAME, "无效的回收策略: %d", policy);
+        MOEAI_ERROR(MODULE_NAME, lang_get(LANG_MEM_INVALID_POLICY), policy);
         return -EINVAL;
     }
     
@@ -164,21 +165,21 @@ static void moeai_mem_check_task(struct timer_list *t)
     
     /* 检查阈值并采取行动 */
     if (stats.mem_usage_percent >= priv->config.emergency_threshold) {
-        MOEAI_WARN(MODULE_NAME, "内存使用率(%u%%)超过紧急阈值(%u%%)",
+        MOEAI_WARN(MODULE_NAME, lang_get(LANG_MEM_ABOVE_EMERGENCY),
                 stats.mem_usage_percent, priv->config.emergency_threshold);
                 
         if (priv->config.auto_reclaim)
             moeai_mem_reclaim(MOEAI_MEM_RECLAIM_AGGRESSIVE);
             
     } else if (stats.mem_usage_percent >= priv->config.critical_threshold) {
-        MOEAI_INFO(MODULE_NAME, "内存使用率(%u%%)超过临界阈值(%u%%)",
+        MOEAI_INFO(MODULE_NAME, lang_get(LANG_MEM_ABOVE_CRITICAL),
                 stats.mem_usage_percent, priv->config.critical_threshold);
                 
         if (priv->config.auto_reclaim)
             moeai_mem_reclaim(MOEAI_MEM_RECLAIM_MODERATE);
             
     } else if (stats.mem_usage_percent >= priv->config.warn_threshold) {
-        MOEAI_INFO(MODULE_NAME, "内存使用率(%u%%)超过警告阈值(%u%%)",
+        MOEAI_INFO(MODULE_NAME, lang_get(LANG_MEM_ABOVE_WARNING),
                 stats.mem_usage_percent, priv->config.warn_threshold);
                 
         if (priv->config.auto_reclaim)
@@ -217,7 +218,7 @@ int moeai_mem_monitor_init(void)
     /* 初始化定时器 */
     timer_setup(&monitor_priv->check_timer, moeai_mem_check_task, 0);
     
-    MOEAI_INFO(MODULE_NAME, "内存监控模块初始化完成");
+    MOEAI_INFO(MODULE_NAME, lang_get(LANG_MEM_INIT_COMPLETE));
     return 0;
 }
 
@@ -235,7 +236,7 @@ void moeai_mem_monitor_exit(void)
     kfree(monitor_priv);
     monitor_priv = NULL;
     
-    MOEAI_INFO(MODULE_NAME, "内存监控模块已清理");
+    MOEAI_INFO(MODULE_NAME, lang_get(LANG_MEM_EXIT_COMPLETE));
 }
 
 /**
@@ -257,7 +258,7 @@ int moeai_mem_monitor_start(void)
     mod_timer(&monitor_priv->check_timer, 
              jiffies + msecs_to_jiffies(monitor_priv->config.check_interval_ms));
     
-    MOEAI_INFO(MODULE_NAME, "内存监控已启动，检查间隔: %u毫秒", 
+    MOEAI_INFO(MODULE_NAME, lang_get(LANG_MEM_STARTED), 
               monitor_priv->config.check_interval_ms);
     
     return 0;
@@ -280,7 +281,7 @@ void moeai_mem_monitor_stop(void)
     /* 删除定时器 */
     del_timer_sync(&monitor_priv->check_timer);
     
-    MOEAI_INFO(MODULE_NAME, "内存监控已停止");
+    MOEAI_INFO(MODULE_NAME, lang_get(LANG_MEM_STOPPED));
 }
 
 /**
@@ -316,6 +317,6 @@ int moeai_mem_monitor_set_config(const struct moeai_mem_monitor_config *config)
                  jiffies + msecs_to_jiffies(config->check_interval_ms));
     }
     
-    MOEAI_INFO(MODULE_NAME, "内存监控配置已更新");
+    MOEAI_INFO(MODULE_NAME, lang_get(LANG_MEM_CONFIG_UPDATED));
     return 0;
 }

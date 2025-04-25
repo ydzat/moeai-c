@@ -1,3 +1,10 @@
+/*
+ * @Author: @ydzat
+ * @Date: 2025-04-24 22:40:38
+ * @LastEditors: @ydzat
+ * @LastEditTime: 2025-04-25 22:48:35
+ * @Description: 
+ */
 /**
  * MoeAI-C - 智能内核助手模块
  * 
@@ -12,6 +19,8 @@
 #include <linux/build_bug.h>
 #include <linux/utsname.h>
 #include "../../include/core/version.h"
+#include "../../include/utils/lang.h"
+#include "../../include/utils/string_ids.h"
 
 /**
  * 获取模块版本信息
@@ -30,9 +39,11 @@ void moeai_version_info(char *buf, size_t size)
     
     /* 格式化版本信息 */
     snprintf(buf, size, 
-             "MoeAI-C v%d.%d.%d%s - 智能内核助手模块\n"
-             "运行于: %s %s %s %s",
+             "%s v%d.%d.%d%s\n"
+             "%s %s %s %s %s",
+             lang_get(LANG_VERSION_HEADER),
              MOEAI_VERSION_MAJOR, MOEAI_VERSION_MINOR, MOEAI_VERSION_PATCH,
              MOEAI_VERSION_SUFFIX,
+             lang_get(LANG_VERSION_RUNNING_ON),
              uname->sysname, uname->release, uname->version, uname->machine);
 }

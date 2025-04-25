@@ -26,26 +26,26 @@ skipped_count=0
 
 # 确保脚本在项目根目录下运行
 if [ ! -d "$LANG_DIR" ]; then
-    echo -e "${RED}错误：请在项目根目录下运行此脚本${NC}"
+    echo -e "${RED}Error: Please run this script from project root directory${NC}"
     exit 1
 fi
 
 # 显示帮助信息
 show_help() {
-    echo -e "${BLUE}MoeAI-C 文档翻译同步工具${NC}"
-    echo "用途：在更新文档时自动同步各语言版本的文档内容"
+    echo -e "${BLUE}MoeAI-C Document Translation Sync Tool${NC}"
+    echo "Purpose: Automatically sync document content across language versions when updating"
     echo ""
-    echo "使用方法:"
-    echo "  ./scripts/sync_translations.sh [选项]"
+    echo "Usage:"
+    echo "  ./scripts/sync_translations.sh [options]"
     echo ""
-    echo "选项:"
-    echo "  --all                同步所有文档"
-    echo "  --design             同步设计文档"
-    echo "  --readme             同步README文档"
-    echo "  --file <file_path>   同步特定的文档文件"
-    echo "  --help               显示此帮助信息"
+    echo "Options:"
+    echo "  --all                Sync all documents"
+    echo "  --design             Sync design documents"
+    echo "  --readme             Sync README documents"
+    echo "  --file <file_path>   Sync specific document file"
+    echo "  --help               Show this help message"
     echo ""
-    echo "示例:"
+    echo "Examples:"
     echo "  ./scripts/sync_translations.sh --design"
     echo "  ./scripts/sync_translations.sh --file doc/design/overview.md"
     echo ""
@@ -70,7 +70,7 @@ ensure_target_dirs() {
         # 创建目录（如果不存在）
         mkdir -p "$target_dir"
         
-        echo -e "${BLUE}确保目标目录存在: ${target_dir}${NC}"
+        echo -e "${BLUE}Ensuring target directory exists: ${target_dir}${NC}"
     done
 }
 
@@ -112,7 +112,7 @@ mark_for_translation() {
     # 添加翻译提醒
     echo -e "\n\n<!-- TODO: 此文档需要翻译成 ${lang} 语言 -->" >> "$target_file"
     
-    echo -e "${YELLOW}已创建 ${target_file} 并标记为需要翻译${NC}"
+    echo -e "${YELLOW}Created ${target_file} and marked for translation${NC}"
 }
 
 # 同步单个文档
@@ -123,12 +123,12 @@ sync_file() {
     
     # 检查源文件是否存在
     if [ ! -f "$source_file" ]; then
-        echo -e "${RED}错误：源文件不存在: ${source_file}${NC}"
+        echo -e "${RED}Error: Source file not found: ${source_file}${NC}"
         ((failure_count++))
         return 1
     fi
     
-    echo -e "${BLUE}正在处理: ${source_file}${NC}"
+    echo -e "${BLUE}Processing: ${source_file}${NC}"
     
     # 确保目标目录存在
     ensure_target_dirs "$source_file"
@@ -153,7 +153,7 @@ sync_file() {
             ((success_count++))
         else
             # 文件已存在，标记为已跳过
-            echo -e "${YELLOW}已跳过现有文件: ${target_file}${NC}"
+            echo -e "${YELLOW}Skipped existing file: ${target_file}${NC}"
             ((skipped_count++))
         fi
     done
@@ -161,7 +161,7 @@ sync_file() {
 
 # 同步设计文档
 sync_design_docs() {
-    echo -e "${GREEN}正在同步设计文档...${NC}"
+    echo -e "${GREEN}Syncing design documents...${NC}"
     
     # 获取所有设计文档
     local design_files=$(find "$DESIGN_DIR" -type f -name "*.md")
@@ -174,17 +174,17 @@ sync_design_docs() {
 
 # 同步README文档
 sync_readme() {
-    echo -e "${GREEN}正在同步README文档...${NC}"
+    echo -e "${GREEN}Syncing README documents...${NC}"
     
     # 判断是否已有语言版本的README
     for lang in "${TARGET_LANGS[@]}"; do
         local target_file="$LANG_DIR/$lang/README.md"
         
         if [ ! -f "$target_file" ]; then
-            echo -e "${RED}错误：${lang} 语言的README文件不存在: ${target_file}${NC}"
+            echo -e "${RED}Error: ${lang} language README file not found: ${target_file}${NC}"
             ((failure_count++))
         else
-            echo -e "${GREEN}${lang} 语言的README文件已存在${NC}"
+            echo -e "${GREEN}${lang} language README file already exists${NC}"
             ((skipped_count++))
         fi
     done
@@ -192,7 +192,7 @@ sync_readme() {
 
 # 同步所有文档
 sync_all() {
-    echo -e "${GREEN}正在同步所有文档...${NC}"
+    echo -e "${GREEN}Syncing all documents...${NC}"
     
     # 同步设计文档
     sync_design_docs
@@ -237,7 +237,7 @@ main() {
                 exit 0
                 ;;
             *)
-                echo -e "${RED}错误：未知选项: $1${NC}"
+                echo -e "${RED}Error: Unknown option: $1${NC}"
                 show_help
                 exit 1
                 ;;
@@ -246,10 +246,10 @@ main() {
     
     # 显示统计信息
     echo ""
-    echo -e "${GREEN}同步完成！${NC}"
-    echo -e "成功: ${success_count}"
-    echo -e "跳过: ${skipped_count}"
-    echo -e "失败: ${failure_count}"
+    echo -e "${GREEN}Sync completed!${NC}"
+    echo -e "Success: ${success_count}"
+    echo -e "Skipped: ${skipped_count}"
+    echo -e "Failed: ${failure_count}"
     
     # 如果有失败的文件，返回非零退出码
     if [ $failure_count -gt 0 ]; then

@@ -12,13 +12,13 @@
 
 #include <linux/types.h>
 
-/* 版本信息 */
+/* 版本定义 */
 #define MOEAI_VERSION_MAJOR    0
-#define MOEAI_VERSION_MINOR    1
+#define MOEAI_VERSION_MINOR    2
 #define MOEAI_VERSION_PATCH    0
 #define MOEAI_VERSION_SUFFIX   "-MVP"
 
-/* 获取版本信息 */
+/* 版本信息函数 */
 void moeai_version_info(char *buf, size_t size);
 
 #endif /* _MOEAI_VERSION_H */

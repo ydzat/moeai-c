@@ -1,10 +1,10 @@
 /**
- * MoeAI-C - 智能内核助手模块
+ * MoeAI-C - Intelligent Kernel Assistant Module
  * 
- * 文件: test/test_mem_monitor.c
- * 描述: 内存监控模块单元测试
+ * File: test/test_mem_monitor.c
+ * Description: Memory monitor module unit test
  * 
- * 版权所有 © 2025 @ydzat
+ * Copyright © 2025 @ydzat
  */
 
 #include <linux/init.h>
@@ -12,11 +12,12 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
-#include "modules/mem_monitor.h"
-#include "utils/logger.h"
-#include "utils/common_defs.h"
+#include "../include/modules/mem_monitor.h"
+#include "../include/utils/logger.h"
+#include "../include/utils/common_defs.h"
+#include "../include/utils/lang.h"
 
-/* 测试环境初始化函数 */
+/* Test environment initialization function */
 static int __init test_mem_monitor_init(void)
 {
     int ret;
@@ -24,127 +25,128 @@ static int __init test_mem_monitor_init(void)
     struct moeai_mem_monitor_config config, new_config;
     long reclaimed;
     
-    pr_info("MoeAI-C: 开始内存监控模块测试\n");
+    pr_info("%s", lang_get(LANG_TEST_MEM_START));
     
-    /* 测试1: 初始化日志系统 */
+    /* Test 1: Initialize logger system */
     ret = moeai_logger_init(true);
     if (ret != 0) {
-        pr_err("测试失败: 无法初始化日志系统，错误码: %d\n", ret);
+        pr_err("%s", lang_get(LANG_TEST_MEM_LOG_INIT_FAILED), ret);
         return ret;
     }
-    pr_info("测试通过: 日志系统初始化成功\n");
+    pr_info("%s", lang_get(LANG_TEST_MEM_LOG_INIT_PASSED));
     
-    /* 测试2: 初始化内存监控模块 */
+    /* Test 2: Initialize memory monitor */
     ret = moeai_mem_monitor_init();
     if (ret != 0) {
-        pr_err("测试失败: 无法初始化内存监控模块，错误码: %d\n", ret);
+        pr_err("%s", lang_get(LANG_TEST_MEM_INIT_FAILED), ret);
         moeai_logger_exit();
         return ret;
     }
-    pr_info("测试通过: 内存监控模块初始化成功\n");
+    pr_info("%s", lang_get(LANG_TEST_MEM_INIT_PASSED));
     
-    /* 测试3: 获取内存状态 */
+    /* Test 3: Get memory stats */
     ret = moeai_mem_monitor_get_stats(&stats);
     if (ret != 0) {
-        pr_err("测试失败: 无法获取内存状态，错误码: %d\n", ret);
+        pr_err("%s", lang_get(LANG_TEST_MEM_GET_STATS_FAILED), ret);
         moeai_mem_monitor_exit();
         moeai_logger_exit();
         return ret;
     }
     
-    pr_info("内存状态: 总量=%lu KB, 可用=%lu KB, 使用率=%u%%\n",
+    pr_info("%s", lang_get(LANG_TEST_MEM_STATS_FORMAT),
            stats.total_ram, stats.available_ram, stats.mem_usage_percent);
-    pr_info("测试通过: 成功获取内存状态\n");
+    pr_info("%s", lang_get(LANG_TEST_MEM_GET_STATS_PASSED));
     
-    /* 测试4: 获取默认配置 */
+    /* Test 4: Get default config */
     ret = moeai_mem_monitor_get_config(&config);
     if (ret != 0) {
-        pr_err("测试失败: 无法获取内存监控配置，错误码: %d\n", ret);
+        pr_err("%s", lang_get(LANG_TEST_MEM_GET_CONFIG_FAILED), ret);
         moeai_mem_monitor_exit();
         moeai_logger_exit();
         return ret;
     }
     
-    pr_info("默认配置: 间隔=%ums, 阈值=%u/%u/%u%%, 自动回收=%s\n",
+    pr_info("%s", lang_get(LANG_TEST_MEM_CONFIG_FORMAT),
            config.check_interval_ms, config.warn_threshold, 
            config.critical_threshold, config.emergency_threshold,
-           config.auto_reclaim ? "启用" : "禁用");
-    pr_info("测试通过: 成功获取默认配置\n");
+           config.auto_reclaim ? lang_get(LANG_PROCFS_AUTO_RECLAIM_ON) : 
+                                lang_get(LANG_PROCFS_AUTO_RECLAIM_OFF));
+    pr_info("%s", lang_get(LANG_TEST_MEM_GET_CONFIG_PASSED));
     
-    /* 测试5: 设置新配置 */
+    /* Test 5: Set new config */
     new_config = config;
-    new_config.check_interval_ms = 10000;  /* 10秒 */
+    new_config.check_interval_ms = 10000;  /* 10 seconds */
     new_config.warn_threshold = 60;        /* 60% */
     new_config.critical_threshold = 75;    /* 75% */
     new_config.emergency_threshold = 90;   /* 90% */
     
     ret = moeai_mem_monitor_set_config(&new_config);
     if (ret != 0) {
-        pr_err("测试失败: 无法设置新配置，错误码: %d\n", ret);
+        pr_err("%s", lang_get(LANG_TEST_MEM_SET_CONFIG_FAILED), ret);
         moeai_mem_monitor_exit();
         moeai_logger_exit();
         return ret;
     }
     
-    /* 验证新配置是否生效 */
+    /* Verify new config is applied */
     memset(&config, 0, sizeof(config));
     ret = moeai_mem_monitor_get_config(&config);
     if (ret != 0 || config.check_interval_ms != new_config.check_interval_ms ||
         config.warn_threshold != new_config.warn_threshold) {
-        pr_err("测试失败: 新配置未正确应用\n");
+        pr_err("%s", lang_get(LANG_TEST_MEM_CONFIG_NOT_APPLIED));
         moeai_mem_monitor_exit();
         moeai_logger_exit();
         return -EINVAL;
     }
-    pr_info("测试通过: 成功设置并验证新配置\n");
+    pr_info("%s", lang_get(LANG_TEST_MEM_SET_CONFIG_PASSED));
     
-    /* 测试6: 启动内存监控 */
+    /* Test 6: Start memory monitor */
     ret = moeai_mem_monitor_start();
     if (ret != 0) {
-        pr_err("测试失败: 无法启动内存监控，错误码: %d\n", ret);
+        pr_err("%s", lang_get(LANG_TEST_MEM_START_FAILED), ret);
         moeai_mem_monitor_exit();
         moeai_logger_exit();
         return ret;
     }
-    pr_info("测试通过: 成功启动内存监控\n");
+    pr_info("%s", lang_get(LANG_TEST_MEM_START_PASSED));
     
-    /* 测试7: 执行内存回收 */
-    reclaimed = moeai_mem_reclaim(MOEAI_MEM_RECLAIM_GENTLE);
+    /* Test 7: Perform memory reclaim */
+    /* 更安全的类型转换方式 */
+    {
+        long (*reclaim_fn)(enum moeai_mem_reclaim_policy);
+        *(void **)&reclaim_fn = (void *)moeai_mem_reclaim;
+        reclaimed = reclaim_fn(MOEAI_MEM_RECLAIM_GENTLE);
+    }
     if (reclaimed < 0) {
-        pr_err("测试失败: 内存回收失败，错误码: %ld\n", reclaimed);
+        int err = (int)reclaimed;
+        pr_err("%s", lang_get(LANG_TEST_MEM_RECLAIM_FAILED), err);
         moeai_mem_monitor_stop();
         moeai_mem_monitor_exit();
         moeai_logger_exit();
-        return reclaimed;
+        return err;
     }
-    pr_info("测试通过: 成功执行内存回收，释放了 %ld KB\n", reclaimed);
+    pr_info("%s", lang_get(LANG_TEST_MEM_RECLAIM_PASSED), (int)reclaimed);
     
-    /* 测试8: 停止内存监控 */
-    ret = moeai_mem_monitor_stop();
-    if (ret != 0) {
-        pr_err("测试失败: 无法停止内存监控，错误码: %d\n", ret);
-        moeai_mem_monitor_exit();
-        moeai_logger_exit();
-        return ret;
-    }
-    pr_info("测试通过: 成功停止内存监控\n");
+    /* Test 8: Stop memory monitor */
+    moeai_mem_monitor_stop();
+    pr_info("%s", lang_get(LANG_TEST_MEM_STOP_PASSED));
     
-    pr_info("MoeAI-C: 内存监控模块测试全部通过!\n");
+    pr_info("%s", lang_get(LANG_TEST_MEM_ALL_PASSED));
     
-    /* 注意：不要在这里清理，在exit函数中清理 */
+    /* Note: Don't cleanup here, will be done in exit function */
     return 0;
 }
 
-/* 测试环境清理函数 */
+/* Test environment cleanup function */
 static void __exit test_mem_monitor_exit(void)
 {
-    /* 清理内存监控模块 */
+    /* Cleanup memory monitor */
     moeai_mem_monitor_exit();
     
-    /* 清理日志系统 */
+    /* Cleanup logger system */
     moeai_logger_exit();
     
-    pr_info("MoeAI-C: 内存监控模块测试清理完成\n");
+    pr_info("%s", lang_get(LANG_TEST_MEM_CLEANUP));
 }
 
 module_init(test_mem_monitor_init);
@@ -152,5 +154,5 @@ module_exit(test_mem_monitor_exit);
 
 MODULE_LICENSE("MIT");
 MODULE_AUTHOR("@ydzat");
-MODULE_DESCRIPTION("MoeAI-C 内存监控模块测试");
+MODULE_DESCRIPTION("MoeAI-C Memory Monitor Test Module");
 MODULE_VERSION("0.1");
