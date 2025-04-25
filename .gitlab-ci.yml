@@ -28,34 +28,33 @@ build_module:
   script:
     - |
       set -e
-      echo "Setting up QEMU test environment..."
-      export KERNEL_VERSION=$(uname -r)
+      # Initialize directories
+      mkdir -p testenv artifacts kernel-src
       
-      echo "Checking kernel source directories..."
-      if [ -d "/usr/lib/modules/${KERNEL_VERSION}/build" ]; then
-        export QEMU_KERNEL_SRC="/usr/lib/modules/${KERNEL_VERSION}/build"
-      elif [ -d "/usr/src/linux-headers-${KERNEL_VERSION}" ]; then
-        export QEMU_KERNEL_SRC="/usr/src/linux-headers-${KERNEL_VERSION}"
-      else
-        echo "Warning: No valid kernel source found, skipping QEMU tests"
-        mkdir -p testenv
-        echo "No QEMU tests run" > testenv/skipped.txt
-        exit 0
-      fi
+      echo "Setting up QEMU test environment..."
+      export KERNEL_VERSION=6.5.7
+      
+      echo "Downloading Linux kernel source ${KERNEL_VERSION}..."
+      wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz -O kernel-src/linux.tar.xz
+      echo "Extracting kernel source..."
+      tar -xf kernel-src/linux.tar.xz -C kernel-src/
+      export QEMU_KERNEL_SRC="$(pwd)/kernel-src/linux-${KERNEL_VERSION}"
+      echo "Using downloaded kernel source at: ${QEMU_KERNEL_SRC}"
 
       if [ -n "${QEMU_KERNEL_SRC}" ] && [ -d "${QEMU_KERNEL_SRC}" ]; then
         echo "Building and testing with QEMU (kernel source: ${QEMU_KERNEL_SRC})..."
-        make qemu-ci-test || echo "QEMU test completed with warnings"
+        make qemu-ci-test || {
+          echo "QEMU test completed with warnings"
+          echo "Test completed with warnings" > testenv/status.txt
+        }
       fi
 
       echo "Collecting test artifacts..."
-      mkdir -p artifacts
-      if [ -d "testenv" ]; then
-        cp -r testenv/* artifacts/ || true
-      else
-        echo "No test environment generated" > artifacts/status.txt
-      fi
-      sudo dmesg > artifacts/dmesg.log 2>/dev/null || echo "Failed to collect dmesg" > artifacts/dmesg.log
+      cp -r testenv/* artifacts/ 2>/dev/null || true
+      echo "CI Environment Info" > artifacts/environment.txt
+      echo "Kernel: ${KERNEL_VERSION}" >> artifacts/environment.txt
+      echo "Date: $(date)" >> artifacts/environment.txt
+      sudo dmesg > artifacts/dmesg.log 2>/dev/null || echo "dmesg not available" > artifacts/dmesg.log
   artifacts:
     paths:
       - artifacts/
