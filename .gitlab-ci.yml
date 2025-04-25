@@ -34,16 +34,53 @@ build_module:
       echo "Setting up QEMU test environment..."
       export KERNEL_VERSION=6.5.7
       
+      echo "Installing build dependencies..."
+      sudo apt-get install -y gpg xz-utils build-essential bc flex bison libssl-dev libelf-dev
+      
+      echo "Setting up GPG keys..."
+      gpg2 --locate-keys torvalds@kernel.org gregkh@kernel.org || echo "GPG key setup may have failed"
+      
       echo "Downloading Linux kernel source ${KERNEL_VERSION}..."
       wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz -O kernel-src/linux.tar.xz
-      echo "Extracting kernel source..."
-      tar -xf kernel-src/linux.tar.xz -C kernel-src/
+      wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.sign -O kernel-src/linux.tar.sign
+      
+      echo "Verifying kernel source..."
+      cd kernel-src
+      unxz linux.tar.xz
+      gpg --verify linux.tar.sign linux.tar || { echo "Kernel verification failed"; exit 1; }
+      tar -xf linux.tar
+      cd ..
+      
+      echo "Building kernel..."
       export QEMU_KERNEL_SRC="$(pwd)/kernel-src/linux-${KERNEL_VERSION}"
-      echo "Using downloaded kernel source at: ${QEMU_KERNEL_SRC}"
+      cd ${QEMU_KERNEL_SRC}
+      make defconfig
+      make -j $(nproc)
+      KERNEL_BINARY="${QEMU_KERNEL_SRC}/arch/x86/boot/bzImage"
+      if [ ! -f "${KERNEL_BINARY}" ]; then
+        echo "Kernel build failed - bzImage not found"
+        exit 1
+      fi
+      echo "Kernel built successfully at: ${KERNEL_BINARY}"
+      cd ..
 
       if [ -n "${QEMU_KERNEL_SRC}" ] && [ -d "${QEMU_KERNEL_SRC}" ]; then
-        echo "Building and testing with QEMU (kernel source: ${QEMU_KERNEL_SRC})..."
-        make qemu-ci-test || {
+        echo "Preparing QEMU test with built kernel..."
+        export QEMU_KERNEL="${KERNEL_BINARY}"
+        export QEMU_INITRD="$(pwd)/scripts/qemu/initramfs.cpio.gz"
+        
+        echo "Kernel: ${QEMU_KERNEL}"
+        echo "Initramfs: ${QEMU_INITRD}"
+        
+        if [ ! -f "${QEMU_INITRD}" ]; then
+          echo "Building initramfs..."
+          cd scripts/qemu
+          ./gen_initramfs.sh
+          cd ../..
+        fi
+        
+        echo "Running QEMU tests..."
+        make qemu-ci-test QEMU_KERNEL="${QEMU_KERNEL}" QEMU_INITRD="${QEMU_INITRD}" || {
           echo "QEMU test completed with warnings"
           echo "Test completed with warnings" > testenv/status.txt
         }
