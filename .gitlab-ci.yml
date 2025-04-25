@@ -14,14 +14,15 @@ default:
     - export KERNEL_VERSION=$(uname -r)
     - echo "Current Kernel Version ${KERNEL_VERSION}"
     - sudo apt-get update || apt-get update
-    - sudo apt-get install -y gcc make qemu-system-x86 || apt-get install -y gcc make qemu-system-x86
+    - sudo apt-get install -y gcc make qemu-system-x86 linux-headers-$(uname -r) || apt-get install -y gcc make qemu-system-x86 linux-headers-$(uname -r)
 
 # Build kernel module
 build_module:
   stage: build
   script:
     - echo "Building kernel module..."
-    # Using CI-specific build target
+    # Using CI-specific build target with kernel headers
+    - export KERNEL_DIR=/lib/modules/$(uname -r)/build
     - make ci-build
     - echo "Note Full kernel module cannot be built in CI environment, will be completed in local dev environment"
   tags:
@@ -107,41 +108,35 @@ generate_changelog:
     
     # Generate CHANGELOG file
     - echo "Generating CHANGELOG file..."
-    - |
-      cat > CHANGELOG << EOF
-      # MoeAI-C Changelog
-
-      ## ${VERSION} ($(date +%Y-%m-%d))
-
-      ### New Features
-      EOF
+    - 'if [ -f CHANGELOG ]; then mv CHANGELOG CHANGELOG.old; fi'
+    - 'echo "# MoeAI-C Changelog" > CHANGELOG'
+    - 'echo "" >> CHANGELOG'
+    - 'echo "## ${VERSION} ($(date +%Y-%m-%d))" >> CHANGELOG'
+    - 'echo "" >> CHANGELOG'
     
-    # Extract commit messages
-    - git log --pretty=format:"* %s (%h)" | grep -i -E "(feature|enhancement|feat)" | grep -v "Merge" | head -10 >> CHANGELOG || echo "* Initial MVP feature implementation" >> CHANGELOG
+    # Parse commit message
+    - 'COMMIT_MSG=$(git log -1 --pretty=format:"%B")'
     - |
-      cat >> CHANGELOG << EOF
-
-      ### Bug Fixes
-      EOF
-    - git log --pretty=format:"* %s (%h)" | grep -i -E "(fix|bug)" | grep -v "Merge" | head -5 >> CHANGELOG || echo "* No bug fixes recorded" >> CHANGELOG
-    - |
-      cat >> CHANGELOG << EOF
-
-      ### Maintenance
-      EOF
-    - git log --pretty=format:"* %s (%h)" | grep -i -E "(chore|refactor)" | grep -v "Merge" | head -5 >> CHANGELOG || echo "* Initial project structure setup" >> CHANGELOG
-    
-    # Add basic feature descriptions
-    - |
-      cat >> CHANGELOG << EOF
-
-      ### Features
-      * \`moectl status\` - Show current system status
-      * \`moectl set threshold <value>\` - Set memory monitoring threshold
-      * \`moectl reclaim\` - Trigger memory reclamation
-      * View recent logs via \`/proc/moeai/log\`
-      * View system status via \`/proc/moeai/status\`
-      EOF
+      if [[ "$COMMIT_MSG" == *"新增功能:"* ]]; then
+        echo "### New Features" >> CHANGELOG
+        echo "$COMMIT_MSG" | sed -n '/新增功能:/,/^改进:/p' | sed '1d;/^改进:/d;/^$/d;s/^-/* /' >> CHANGELOG
+        echo "" >> CHANGELOG
+        echo "### Improvements" >> CHANGELOG
+        echo "$COMMIT_MSG" | sed -n '/改进:/,/^修复:/p' | sed '1d;/^修复:/d;/^$/d;s/^-/* /' >> CHANGELOG
+        echo "" >> CHANGELOG
+        echo "### Bug Fixes" >> CHANGELOG
+        echo "$COMMIT_MSG" | sed -n '/修复:/,/^BREAKING CHANGE:/p' | sed '1d;/^BREAKING CHANGE:/d;/^$/d;s/^-/* /' >> CHANGELOG
+      else
+        echo "### New Features" >> CHANGELOG
+        git log --pretty=format:"* %s (%h)" | grep -i -E "(feat|feature|新增功能)" | grep -v "Merge" | head -10 >> CHANGELOG
+        echo "" >> CHANGELOG
+        echo "### Improvements" >> CHANGELOG
+        git log --pretty=format:"* %s (%h)" | grep -i -E "(improve|优化|改进)" | grep -v "Merge" | head -5 >> CHANGELOG
+        echo "" >> CHANGELOG
+        echo "### Bug Fixes" >> CHANGELOG
+        git log --pretty=format:"* %s (%h)" | grep -i -E "(fix|修复|bug)" | grep -v "Merge" | head -5 >> CHANGELOG
+      fi
+    - 'if [ -f CHANGELOG.old ]; then cat CHANGELOG.old >> CHANGELOG; rm CHANGELOG.old; fi'
     
     - cat CHANGELOG || echo "Failed to output CHANGELOG file"
     - test -f CHANGELOG && echo "CHANGELOG generated" || echo "CHANGELOG generation failed"
