@@ -54,6 +54,7 @@ build_module:
     - echo "Device nodes created:"
     - ls -l testenv/ci_init_fs/dev/
     
+    
     # Build initramfs with explicit paths
     - |
       echo "Building initramfs..."
