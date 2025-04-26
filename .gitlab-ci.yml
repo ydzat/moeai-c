@@ -102,13 +102,12 @@ qemu_test:
       zcat "${QEMU_INITRD}" | cpio -itv | grep init
 
       echo "Launching QEMU..."
-      timeout 120 qemu-system-x86_64 \
-        -m 1024 \
+      timeout 200 qemu-system-x86_64 \
+        -nographic \
         -kernel "${QEMU_KERNEL}" \
         -initrd "${QEMU_INITRD}" \
         -append "rdinit=/init console=ttyS0" \
-        -nographic || echo "QEMU exited or timed out"
-
+        
       echo "QEMU test completed."
   artifacts:
     paths:
