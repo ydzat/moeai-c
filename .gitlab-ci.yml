@@ -55,20 +55,17 @@ qemu_test:
       echo "mount -t proc none /proc" >> testenv/initramfs/init
       echo "mount -t sysfs none /sys" >> testenv/initramfs/init
       echo "mount -t devtmpfs devtmpfs /dev || true" >> testenv/initramfs/init
-      echo "" >> testenv/initramfs/init
       echo "if [ -x /bin/busybox ]; then" >> testenv/initramfs/init
       echo "    echo \"[init] Found busybox.\"" >> testenv/initramfs/init
       echo "else" >> testenv/initramfs/init
       echo "    echo \"[init] ERROR: busybox missing\"" >> testenv/initramfs/init
       echo "    exec /bin/sh" >> testenv/initramfs/init
       echo "fi" >> testenv/initramfs/init
-      echo "" >> testenv/initramfs/init
       echo "if [ -f /lib/modules/moeai.ko ]; then" >> testenv/initramfs/init
       echo "    insmod /lib/modules/moeai.ko && echo \"[init] MoeAI-C module loaded successfully.\" || echo \"[init] ERROR: MoeAI-C module load failed.\"" >> testenv/initramfs/init
       echo "else" >> testenv/initramfs/init
       echo "    echo \"[init] ERROR: moeai.ko not found!\"" >> testenv/initramfs/init
       echo "fi" >> testenv/initramfs/init
-      echo "" >> testenv/initramfs/init
       echo "exec /bin/sh" >> testenv/initramfs/init
 
       chmod +x testenv/initramfs/init
@@ -101,24 +98,32 @@ qemu_test:
       echo "Verifying contents of initramfs (looking for init and busybox):"
       zcat "${QEMU_INITRD}" | cpio -itv | grep -E "init|busybox"
 
-      echo "Launching QEMU..."
-      timeout 120 qemu-system-x86_64 \
-        -m 1024 \
-        -kernel "${QEMU_KERNEL}" \
-        -initrd "${QEMU_INITRD}" \
-        -append "rdinit=/init console=ttyS0" \
-        -nographic || echo "QEMU exited or timed out"
+      echo "Creating start_qemu.sh script..."
+      echo "#!/bin/bash" > start_qemu.sh
+      echo "timeout 120 qemu-system-x86_64 \" >> start_qemu.sh
+      echo "  -m 1024 \" >> start_qemu.sh
+      echo "  -kernel \"${QEMU_KERNEL}\" \" >> start_qemu.sh
+      echo "  -initrd \"${QEMU_INITRD}\" \" >> start_qemu.sh
+      echo "  -append 'rdinit=/init console=ttyS0' \" >> start_qemu.sh
+      echo "  -nographic" >> start_qemu.sh
+
+      chmod +x start_qemu.sh
+
+      echo "Launching QEMU via script..."
+      ./start_qemu.sh || echo "QEMU exited or timed out"
 
       echo "QEMU test completed."
   artifacts:
     paths:
       - artifacts/
+      - start_qemu.sh
     when: always
   tags:
     - moeai
     - linux
   allow_failure: true
-  
+
+
 generate_docs:
   stage: documentation
   script:
