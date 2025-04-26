@@ -139,25 +139,54 @@ qemu_test:
     - cp build/bin/moectl scripts/qemu/build/bin/
     - cp moeai.ko scripts/qemu/
     
-    # Prepare initramfs with proper init script
-    - cd scripts/qemu
-    - mkdir -p initramfs_root/{bin,dev,etc,proc,sys}
-    - cp build/bin/moectl initramfs_root/bin/
-    - cp moeai.ko initramfs_root/
-    - cp init_scripts/ci_init.sh initramfs_root/init
-    - chmod +x initramfs_root/init
-    - sed -i "s|MODULE_PATH=.*|MODULE_PATH=/moeai.ko|" initramfs_root/init
-    - sed -i "s|MOECTL_PATH=.*|MOECTL_PATH=/bin/moectl|" initramfs_root/init
+    # Prepare test environment following Makefile's qemu-prepare
+    - mkdir -p testenv/initramfs/{bin,lib/modules,usr/bin,dev,proc,sys}
+    
+    # Copy module and CLI tool
+    - cp moeai.ko testenv/initramfs/lib/modules/
+    - cp build/bin/moectl testenv/initramfs/usr/bin/
+    - chmod 755 testenv/initramfs/usr/bin/moectl
+    - cp build/bin/moectl testenv/initramfs/bin/
+    - chmod 755 testenv/initramfs/bin/moectl
+    
+    # Create init script dynamically
+    - echo "#!/bin/sh" > testenv/initramfs/init
+    - echo "mount -t proc none /proc" >> testenv/initramfs/init
+    - echo "mount -t sysfs none /sys" >> testenv/initramfs/init
+    - echo "mount -t devtmpfs none /dev 2>/dev/null || echo \"Warning: Could not mount devtmpfs\"" >> testenv/initramfs/init
+    - echo "" >> testenv/initramfs/init
+    - echo "echo \"Starting module initialization\"" >> testenv/initramfs/init
+    - echo "echo \"-----------------------------\"" >> testenv/initramfs/init
+    - echo "echo \"Loading moeai module\"" >> testenv/initramfs/init
+    - echo "insmod /lib/modules/moeai.ko || echo \"Failed to load module\"" >> testenv/initramfs/init
+    - echo "" >> testenv/initramfs/init
+    - echo "echo \"Ensuring module is loaded\"" >> testenv/initramfs/init
+    - echo "sleep 2" >> testenv/initramfs/init
+    - echo "if lsmod | grep -q moeai; then" >> testenv/initramfs/init
+    - echo "  echo \"Module loaded successfully\"" >> testenv/initramfs/init
+    - echo "  echo \"Running self-test\"" >> testenv/initramfs/init
+    - echo "  /bin/moectl selftest || echo \"Self-test failed\"" >> testenv/initramfs/init
+    - echo "else" >> testenv/initramfs/init
+    - echo "  echo \"Module not loaded\"" >> testenv/initramfs/init
+    - echo "fi" >> testenv/initramfs/init
+    - echo "" >> testenv/initramfs/init
+    - echo "echo \"-----------------------------\"" >> testenv/initramfs/init
+    - echo "echo \"Test complete\"" >> testenv/initramfs/init
+    - echo "exec /bin/sh" >> testenv/initramfs/init
+    - chmod +x testenv/initramfs/init
     
     # Create device nodes
-    - sudo mknod initramfs_root/dev/console c 5 1
-    - sudo mknod initramfs_root/dev/tty0 c 4 0
-    - sudo mknod initramfs_root/dev/null c 1 3
+    - sudo mknod testenv/initramfs/dev/console c 5 1
+    - sudo mknod testenv/initramfs/dev/tty0 c 4 0
+    - sudo mknod testenv/initramfs/dev/null c 1 3
     
-    # Build initramfs
-    - (cd initramfs_root && find . | cpio -o -H newc | gzip -9 > ../minimal_initramfs.cpio.gz)
-    - mv minimal_initramfs.cpio.gz "${QEMU_INITRD}"
-    - cd -
+    # Pack initramfs following Makefile's qemu-pack
+    - cd testenv/initramfs && find . -print0 | cpio --null -ov --format=newc 2>/dev/null | gzip -9 > ../minimal_initramfs.cpio.gz
+    - cd ../..
+    - mv testenv/minimal_initramfs.cpio.gz "${QEMU_INITRD}"
+    
+    # Verify initramfs
+    - zcat "${QEMU_INITRD}" | cpio -itv
     
     # 启动 QEMU
     - qemu-system-x86_64 -m 1024 -kernel "${QEMU_KERNEL}" -initrd "${QEMU_INITRD}" -append "rdinit=/init console=ttyS0" -nographic
