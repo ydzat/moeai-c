@@ -53,15 +53,22 @@ build_module:
     - ls -l testenv/ci_init_fs/dev/
     
     # Build initramfs with explicit paths
-    - echo "Building initramfs..."
-    - export QEMU_KERNEL="/opt/kernels/linux-6.5.7/arch/x86/boot/bzImage"
-    - mkdir -p artifacts
-    - export QEMU_INITRD="$(pwd)/artifacts/minimal_initramfs.cpio.gz"
-    - scripts/qemu/gen_initramfs.sh \
-        -k "${QEMU_KERNEL}" \
-        -i "${QEMU_INITRD}" \
-        -c scripts/qemu/config/ci.conf \
-        -t scripts/qemu/init_scripts/ci_init.sh
+    - |
+      echo "Building initramfs..."
+      export QEMU_KERNEL="/opt/kernels/linux-6.5.7/arch/x86/boot/bzImage"
+      mkdir -p artifacts
+      export QEMU_INITRD="$(pwd)/artifacts/minimal_initramfs.cpio.gz"
+      echo "Generating initramfs with:"
+      echo "Kernel: ${QEMU_KERNEL}"
+      echo "Output: ${QEMU_INITRD}"
+      echo "Config: scripts/qemu/config/ci.conf"
+      echo "Init: scripts/qemu/init_scripts/ci_init.sh"
+      scripts/qemu/gen_initramfs.sh -k "${QEMU_KERNEL}" -i "${QEMU_INITRD}" -c scripts/qemu/config/ci.conf -t scripts/qemu/init_scripts/ci_init.sh
+      if [ ! -f "${QEMU_INITRD}" ]; then
+        echo "Error: Failed to generate initramfs at ${QEMU_INITRD}"
+        exit 1
+      fi
+      echo "Initramfs successfully generated at ${QEMU_INITRD}"
 
   cache:
     key: ${CI_COMMIT_REF_SLUG}
