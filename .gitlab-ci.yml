@@ -55,7 +55,8 @@ build_module:
     # Build initramfs with explicit paths
     - echo "Building initramfs..."
     - export QEMU_KERNEL="/opt/kernels/linux-6.5.7/arch/x86/boot/bzImage"
-    - export QEMU_INITRD="$(pwd)/testenv/minimal_initramfs.cpio.gz"
+    - mkdir -p artifacts
+    - export QEMU_INITRD="$(pwd)/artifacts/minimal_initramfs.cpio.gz"
     - scripts/qemu/gen_initramfs.sh \
         -k "${QEMU_KERNEL}" \
         -i "${QEMU_INITRD}" \
@@ -73,6 +74,7 @@ build_module:
       - scripts/
       - artifacts/
       - build/
+      - testenv/minimal_initramfs.cpio.gz
     expire_in: 1 week
   tags:
     - moeai
@@ -88,10 +90,10 @@ qemu_test:
     - set -e
     - echo "Starting QEMU test..."
     - export QEMU_KERNEL="/opt/kernels/linux-6.5.7/arch/x86/boot/bzImage"
-    - export QEMU_INITRD="$(pwd)/testenv/minimal_initramfs.cpio.gz"
+    - export QEMU_INITRD="$(pwd)/artifacts/minimal_initramfs.cpio.gz"
 
     - if [ ! -f "${QEMU_KERNEL}" ]; then echo "Error bzImage not found at ${QEMU_KERNEL}"; exit 1; fi
-    - if [ ! -f "${QEMU_INITRD}" ]; then echo "Error initramfs not found!"; exit 1; fi
+    - if [ ! -f "${QEMU_INITRD}" ]; then echo "Error initramfs not found at ${QEMU_INITRD}"; exit 1; fi
 
     # 启动 QEMU（示例脚本，你可以替换成自己的 run_qemu.sh）
     - qemu-system-x86_64 -m 1024 -kernel "${QEMU_KERNEL}" -initrd "${QEMU_INITRD}" -append "rdinit=/init console=ttyS0" -nographic
