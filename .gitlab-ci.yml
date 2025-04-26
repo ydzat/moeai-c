@@ -137,13 +137,18 @@ qemu_test:
     - cp build/bin/moectl scripts/qemu/build/bin/
     - cp moeai.ko scripts/qemu/
     
-    # Generate initramfs
+    # Prepare init script and generate initramfs
     - cd scripts/qemu
+    - cp init_scripts/ci_init.sh init
+    - chmod +x init
+    - sed -i "s|MODULE_PATH=.*|MODULE_PATH=/moeai.ko|" init
+    - sed -i "s|MOECTL_PATH=.*|MOECTL_PATH=/bin/moectl|" init
+    
     - export OUTPUT_FILE="minimal_initramfs.cpio.gz"
     - export KERNEL="${QEMU_KERNEL}"
     - export INITRD="${OUTPUT_FILE}"
     - export CONFIG="config/ci.conf"
-    - export INIT_SCRIPT="init_scripts/ci_init.sh"
+    - export INIT_SCRIPT="init"
     - export MODULE="moeai.ko"
     - export COMPRESS_LEVEL=9
     - export MINIMAL_MODE=1
