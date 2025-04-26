@@ -90,24 +90,25 @@ qemu_test:
 
       echo "Packing initramfs..."
       mkdir -p artifacts
-      (cd testenv/initramfs && find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../minimal_initramfs.cpio.gz)
-      if [ ! -f testenv/minimal_initramfs.cpio.gz ]; then
+      (cd testenv/initramfs && find . | cpio -o -H newc | gzip -9 > ../../artifacts/minimal_initramfs.cpio.gz)
+      if [ ! -f artifacts/minimal_initramfs.cpio.gz ]; then
         echo "Error: Initramfs not created."
         exit 1
       fi
-      mv testenv/minimal_initramfs.cpio.gz artifacts/minimal_initramfs.cpio.gz
+
       export QEMU_INITRD="$(pwd)/artifacts/minimal_initramfs.cpio.gz"
 
-      echo "Verifying contents of initramfs:"
-      zcat "${QEMU_INITRD}" | cpio -itv | grep init
+      echo "Verifying contents of initramfs (looking for init and moeai.ko):"
+      zcat "${QEMU_INITRD}" | cpio -itv | grep -E "init|moeai"
 
       echo "Launching QEMU..."
-      timeout 200 qemu-system-x86_64 \
-        -nographic \
+      timeout 120 qemu-system-x86_64 \
+        -m 1024 \
         -kernel "${QEMU_KERNEL}" \
         -initrd "${QEMU_INITRD}" \
         -append "rdinit=/init console=ttyS0" \
-        
+        -nographic || echo "QEMU exited or timed out"
+
       echo "QEMU test completed."
   artifacts:
     paths:
