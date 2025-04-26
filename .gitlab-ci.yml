@@ -69,19 +69,26 @@ build_module:
       cp build/bin/moectl scripts/qemu/build/bin/
       cp moeai.ko scripts/qemu/
       
-      # Generate initramfs with absolute paths
+      # Generate initramfs and handle output path
       cd scripts/qemu
+      OUTPUT_FILE="minimal_initramfs.cpio.gz"
       KERNEL="${QEMU_KERNEL}" \
-      INITRD="${QEMU_INITRD}" \
+      INITRD="${OUTPUT_FILE}" \
       CONFIG="config/ci.conf" \
       INIT_SCRIPT="init_scripts/ci_init.sh" \
       MODULE="moeai.ko" \
       ./gen_initramfs.sh
-      cd -
-      if [ ! -f "${QEMU_INITRD}" ]; then
-        echo "Error: Failed to generate initramfs at ${QEMU_INITRD}"
+      
+      # Move generated file to artifacts directory
+      if [ -f "${OUTPUT_FILE}" ]; then
+        mv "${OUTPUT_FILE}" "${QEMU_INITRD}"
+        echo "Initramfs moved to ${QEMU_INITRD}"
+      else
+        echo "Error: gen_initramfs.sh did not generate ${OUTPUT_FILE}"
+        ls -l
         exit 1
       fi
+      cd -
       echo "Initramfs successfully generated at ${QEMU_INITRD}"
 
   cache:
