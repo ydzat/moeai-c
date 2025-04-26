@@ -60,7 +60,7 @@ qemu_test:
       echo "    echo \"[init] Found busybox.\"" >> testenv/initramfs/init
       echo "else" >> testenv/initramfs/init
       echo "    echo \"[init] ERROR: busybox missing\"" >> testenv/initramfs/init
-      echo "    exit 1" >> testenv/initramfs/init
+      echo "    exec sh" >> testenv/initramfs/init
       echo "fi" >> testenv/initramfs/init
       echo "" >> testenv/initramfs/init
       echo "if [ -f /lib/modules/moeai.ko ]; then" >> testenv/initramfs/init
@@ -106,7 +106,7 @@ qemu_test:
         -m 1024 \
         -kernel "${QEMU_KERNEL}" \
         -initrd "${QEMU_INITRD}" \
-        -append "rdinit=/init console=ttyS0 root=/dev/ram0 init=/init" \
+        -append "rdinit=/init console=ttyS0" \
         -nographic || echo "QEMU exited or timed out"
 
       echo "QEMU test completed."
@@ -118,7 +118,6 @@ qemu_test:
     - moeai
     - linux
   allow_failure: true
-
 
 generate_docs:
   stage: documentation
