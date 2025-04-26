@@ -99,11 +99,11 @@ build_module:
 
   artifacts:
     paths:
-      - scripts/
-      - artifacts/
-      - build/
-      - testenv/minimal_initramfs.cpio.gz
+      - artifacts/minimal_initramfs.cpio.gz
+      - build/bin/moectl
+      - moeai.ko
     expire_in: 1 week
+    when: on_success
   tags:
     - moeai
     - linux
