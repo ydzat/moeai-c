@@ -190,7 +190,7 @@ qemu_test:
     
     # check if init is valid
     - echo "Checking init script..."
-    - echo testenv/initramfs/init
+    - cat testenv/initramfs/init
 
     # 启动 QEMU
     - qemu-system-x86_64 -m 1024 -kernel "${QEMU_KERNEL}" -initrd "${QEMU_INITRD}" -append "rdinit=/init console=ttyS0" -nographic
