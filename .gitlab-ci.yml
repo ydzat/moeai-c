@@ -1,4 +1,4 @@
-# MoeAI-C GitLab CI/CD Configuration File (彻底修正版)
+# MoeAI-C GitLab CI/CD Configuration File (仿照本地脚本重构版)
 
 stages:
   - build
@@ -51,29 +51,27 @@ qemu_test:
       chmod 755 testenv/initramfs/usr/bin/moectl
 
       echo "Creating /init script..."
-      mkdir -p testenv/initramfs
       echo "#!/bin/sh" > testenv/initramfs/init
       echo "mount -t proc none /proc" >> testenv/initramfs/init
       echo "mount -t sysfs none /sys" >> testenv/initramfs/init
-      echo "echo \"[init] MoeAI-C Test Environment Booted\"" >> testenv/initramfs/init
+      echo "mount -t devtmpfs devtmpfs /dev || true" >> testenv/initramfs/init
+      echo "" >> testenv/initramfs/init
       echo "if [ -x /bin/busybox ]; then" >> testenv/initramfs/init
       echo "    echo \"[init] Found busybox.\"" >> testenv/initramfs/init
       echo "else" >> testenv/initramfs/init
       echo "    echo \"[init] ERROR: busybox missing\"" >> testenv/initramfs/init
       echo "    exit 1" >> testenv/initramfs/init
       echo "fi" >> testenv/initramfs/init
+      echo "" >> testenv/initramfs/init
       echo "if [ -f /lib/modules/moeai.ko ]; then" >> testenv/initramfs/init
       echo "    insmod /lib/modules/moeai.ko && echo \"[init] MoeAI-C module loaded successfully.\" || echo \"[init] ERROR: MoeAI-C module load failed.\"" >> testenv/initramfs/init
       echo "else" >> testenv/initramfs/init
       echo "    echo \"[init] ERROR: moeai.ko not found!\"" >> testenv/initramfs/init
       echo "fi" >> testenv/initramfs/init
+      echo "" >> testenv/initramfs/init
       echo "exec /bin/sh" >> testenv/initramfs/init
-      chmod +x testenv/initramfs/init
 
-      echo "Showing init script contents:"
-      echo "----------------------------------------"
-      cat testenv/initramfs/init
-      echo "----------------------------------------"
+      chmod +x testenv/initramfs/init
 
       echo "Copying busybox..."
       if [ -x /bin/busybox ]; then
@@ -104,7 +102,12 @@ qemu_test:
       zcat "${QEMU_INITRD}" | cpio -itv | grep init
 
       echo "Launching QEMU..."
-      timeout 60 qemu-system-x86_64 -m 1024 -kernel "${QEMU_KERNEL}" -initrd "${QEMU_INITRD}" -append "rdinit=/init console=ttyS0" -nographic || echo "QEMU exited or timed out"
+      timeout 120 qemu-system-x86_64 \
+        -m 1024 \
+        -kernel "${QEMU_KERNEL}" \
+        -initrd "${QEMU_INITRD}" \
+        -append "rdinit=/init console=ttyS0 root=/dev/ram0 init=/init" \
+        -nographic || echo "QEMU exited or timed out"
 
       echo "QEMU test completed."
   artifacts:
@@ -115,6 +118,7 @@ qemu_test:
     - moeai
     - linux
   allow_failure: true
+
 
 generate_docs:
   stage: documentation
