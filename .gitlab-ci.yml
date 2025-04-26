@@ -138,23 +138,24 @@ qemu_test:
     - cp build/bin/moectl scripts/qemu/build/bin/
     - cp moeai.ko scripts/qemu/
     
-    # Prepare init script and generate initramfs
+    # Prepare initramfs with proper init script
     - cd scripts/qemu
-    - cp init_scripts/ci_init.sh init
-    - chmod +x init
-    - sed -i "s|MODULE_PATH=.*|MODULE_PATH=/moeai.ko|" init
-    - sed -i "s|MOECTL_PATH=.*|MOECTL_PATH=/bin/moectl|" init
+    - mkdir -p initramfs_root/{bin,dev,etc,proc,sys}
+    - cp build/bin/moectl initramfs_root/bin/
+    - cp moeai.ko initramfs_root/
+    - cp init_scripts/ci_init.sh initramfs_root/init
+    - chmod +x initramfs_root/init
+    - sed -i "s|MODULE_PATH=.*|MODULE_PATH=/moeai.ko|" initramfs_root/init
+    - sed -i "s|MOECTL_PATH=.*|MOECTL_PATH=/bin/moectl|" initramfs_root/init
     
-    - export OUTPUT_FILE="minimal_initramfs.cpio.gz"
-    - export KERNEL="${QEMU_KERNEL}"
-    - export INITRD="${OUTPUT_FILE}"
-    - export CONFIG="config/ci.conf"
-    - export INIT_SCRIPT="init"
-    - export MODULE="moeai.ko"
-    - export COMPRESS_LEVEL=9
-    - export MINIMAL_MODE=1
-    - ./gen_initramfs.sh
-    - mv "${OUTPUT_FILE}" "${QEMU_INITRD}"
+    # Create device nodes
+    - sudo mknod initramfs_root/dev/console c 5 1
+    - sudo mknod initramfs_root/dev/tty0 c 4 0
+    - sudo mknod initramfs_root/dev/null c 1 3
+    
+    # Build initramfs
+    - (cd initramfs_root && find . | cpio -o -H newc | gzip -9 > ../minimal_initramfs.cpio.gz)
+    - mv minimal_initramfs.cpio.gz "${QEMU_INITRD}"
     - cd -
     
     # 启动 QEMU
