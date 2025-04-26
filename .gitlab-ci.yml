@@ -100,7 +100,7 @@ qemu_test:
 
       echo "Creating start_qemu.sh script..."
       echo "#!/bin/bash" > start_qemu.sh
-      echo "timeout 200 qemu-system-x86_64 -m 1024 -kernel \"\${QEMU_KERNEL}\" -initrd \"\${QEMU_INITRD}\" -nographic -append "rdinit=/init console=ttyS0"                   ">> start_qemu.sh
+      echo "timeout 200 qemu-system-x86_64 -m 1024 -kernel \"\${QEMU_KERNEL}\" -initrd \"\${QEMU_INITRD}\" -nographic -append \"rdinit=/init console=ttyS0\"                   ">> start_qemu.sh
 
       chmod +x start_qemu.sh
 
