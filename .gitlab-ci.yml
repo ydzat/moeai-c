@@ -70,6 +70,11 @@ qemu_test:
       echo "exec /bin/sh" >> testenv/initramfs/init
       chmod +x testenv/initramfs/init
 
+      echo "Showing init script contents:"
+      echo "----------------------------------------"
+      cat testenv/initramfs/init
+      echo "----------------------------------------"
+
       echo "Copying busybox..."
       if [ -x /bin/busybox ]; then
         cp /bin/busybox testenv/initramfs/bin/busybox
