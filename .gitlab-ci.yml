@@ -127,12 +127,31 @@ qemu_test:
     - set -e
     - echo "Starting QEMU test..."
     - export QEMU_KERNEL="/opt/kernels/linux-6.5.7/arch/x86/boot/bzImage"
+    - mkdir -p artifacts
     - export QEMU_INITRD="$(pwd)/artifacts/minimal_initramfs.cpio.gz"
 
     - if [ ! -f "${QEMU_KERNEL}" ]; then echo "Error bzImage not found at ${QEMU_KERNEL}"; exit 1; fi
-    - if [ ! -f "${QEMU_INITRD}" ]; then echo "Error initramfs not found at ${QEMU_INITRD}"; exit 1; fi
 
-    # 启动 QEMU（示例脚本，你可以替换成自己的 run_qemu.sh）
+    # Prepare environment and generate initramfs
+    - mkdir -p scripts/qemu/build/bin
+    - cp build/bin/moectl scripts/qemu/build/bin/
+    - cp moeai.ko scripts/qemu/
+    
+    # Generate initramfs
+    - cd scripts/qemu
+    - OUTPUT_FILE="minimal_initramfs.cpio.gz"
+    - KERNEL="${QEMU_KERNEL}" \
+      INITRD="${OUTPUT_FILE}" \
+      CONFIG="config/ci.conf" \
+      INIT_SCRIPT="init_scripts/ci_init.sh" \
+      MODULE="moeai.ko" \
+      COMPRESS_LEVEL=9 \
+      MINIMAL_MODE=1 \
+      ./gen_initramfs.sh
+    - mv "${OUTPUT_FILE}" "${QEMU_INITRD}"
+    - cd -
+    
+    # 启动 QEMU
     - qemu-system-x86_64 -m 1024 -kernel "${QEMU_KERNEL}" -initrd "${QEMU_INITRD}" -append "rdinit=/init console=ttyS0" -nographic
 
     - echo "QEMU test completed."
