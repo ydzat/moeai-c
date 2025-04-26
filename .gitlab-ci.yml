@@ -24,8 +24,9 @@ build_module:
     - mkdir -p testenv artifacts kernel-src
 
     # 检查缓存中的内核源码
-    - echo "Checking for cached kernel source..."
-    - if [ -d "kernel-src/linux-${KERNEL_VERSION}" ]; then
+    - |
+      echo "Checking for cached kernel source..."
+      if [ -d "kernel-src/linux-${KERNEL_VERSION}" ]; then
         echo "Using cached kernel source"
         ls -l kernel-src/linux-${KERNEL_VERSION}
       else
