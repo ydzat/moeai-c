@@ -9,12 +9,10 @@ stages:
 
 default:
   before_script:
-    - export KERNEL_VERSION=6.5.7
-    - echo "Current Kernel Version $(uname -r)"
-    - sudo apt-get update || apt-get update
-    - sudo apt-get install -y gcc make xz-utils build-essential bc flex bison libssl-dev libelf-dev qemu-system-x86 || true
-    - sudo rm -f /var/lib/dpkg/lock-frontend || true
-    - echo "Warning Could not install exact kernel headers, continuing"
+    - |
+      export KERNEL_DIR="/opt/kernels/linux-6.5.7"
+      export QEMU_KERNEL="${KERNEL_DIR}/arch/x86/boot/bzImage"
+      echo "Using prebuilt kernel at ${KERNEL_DIR}"
 
 # Build kernel module and prepare QEMU environment
 build_module:
@@ -23,38 +21,15 @@ build_module:
     - set -e
     - mkdir -p testenv artifacts kernel-src
 
-    # 检查缓存中的内核源码
+    # 使用预编译的内核
     - |
-      echo "Checking for cached kernel source..."
-      if [ -d "kernel-src/linux-${KERNEL_VERSION}" ]; then
-        echo "Using cached kernel source"
-        ls -l kernel-src/linux-${KERNEL_VERSION}
-      else
-        echo "Downloading Linux kernel source ${KERNEL_VERSION}..."
-        mkdir -p kernel-src
-        cd kernel-src
-        wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz
-        tar -xf linux-${KERNEL_VERSION}.tar.xz
-        cd ..
-        echo "Kernel source downloaded and extracted"
+      export KERNEL_DIR="/opt/kernels/linux-6.5.7"
+      export QEMU_KERNEL="${KERNEL_DIR}/arch/x86/boot/bzImage"
+      echo "Using prebuilt kernel at ${KERNEL_DIR}"
+      if [ ! -f "${QEMU_KERNEL}" ]; then
+        echo "Error: Prebuilt kernel not found at ${KERNEL_DIR}"
+        exit 1
       fi
-
-    # 编译 Linux 内核并设置环境变量
-    - |
-      export QEMU_KERNEL_SRC="$(pwd)/kernel-src/linux-${KERNEL_VERSION}"
-      export KERNEL_DIR="${QEMU_KERNEL_SRC}"
-      export KERNEL_BINARY="${QEMU_KERNEL_SRC}/arch/x86/boot/bzImage"
-
-      if [ ! -f "${KERNEL_BINARY}" ]; then
-        echo "Building Linux kernel..."
-        cd ${QEMU_KERNEL_SRC}
-        make defconfig
-        make -j$(nproc)
-        cd -
-      else
-        echo "Kernel binary already exists."
-      fi
-      echo "KERNEL_DIR set to: ${KERNEL_DIR}"
 
     # Build CLI tool first with proper linking
     - echo "Building CLI tool..."
@@ -82,13 +57,11 @@ build_module:
   cache:
     key: ${CI_COMMIT_REF_SLUG}
     paths:
-      - kernel-src/
       - build/
     policy: pull-push
 
   artifacts:
     paths:
-      - kernel-src/linux-${KERNEL_VERSION}/
       - scripts/
       - artifacts/
       - build/
