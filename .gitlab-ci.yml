@@ -63,7 +63,13 @@ build_module:
       echo "Output: ${QEMU_INITRD}"
       echo "Config: scripts/qemu/config/ci.conf"
       echo "Init: scripts/qemu/init_scripts/ci_init.sh"
-      scripts/qemu/gen_initramfs.sh -k "${QEMU_KERNEL}" -i "${QEMU_INITRD}" -c scripts/qemu/config/ci.conf -t scripts/qemu/init_scripts/ci_init.sh
+      cd scripts/qemu && \
+      ./gen_initramfs.sh \
+        --kernel "${QEMU_KERNEL}" \
+        --initrd "${QEMU_INITRD}" \
+        --config ci.conf \
+        --init-script init_scripts/ci_init.sh
+      cd -
       if [ ! -f "${QEMU_INITRD}" ]; then
         echo "Error: Failed to generate initramfs at ${QEMU_INITRD}"
         exit 1
