@@ -49,10 +49,15 @@ build_module:
     - echo "Device nodes created:"
     - ls -l testenv/ci_init_fs/dev/
     
-    # Build initramfs using Makefile target with correct kernel path
+    # Build initramfs with explicit paths
     - echo "Building initramfs..."
-    - export QEMU_KERNEL="$(pwd)/kernel-src/linux-${KERNEL_VERSION}/arch/x86/boot/bzImage"
-    - make qemu-ci-test
+    - export QEMU_KERNEL="/opt/kernels/linux-6.5.7/arch/x86/boot/bzImage"
+    - export QEMU_INITRD="$(pwd)/testenv/minimal_initramfs.cpio.gz"
+    - scripts/qemu/gen_initramfs.sh \
+        -k "${QEMU_KERNEL}" \
+        -i "${QEMU_INITRD}" \
+        -c scripts/qemu/config/ci.conf \
+        -t scripts/qemu/init_scripts/ci_init.sh
 
   cache:
     key: ${CI_COMMIT_REF_SLUG}
