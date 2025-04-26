@@ -21,7 +21,7 @@ build_module:
     - set -e
     - mkdir -p testenv artifacts kernel-src
 
-    # 使用预编译的内核
+    # 设置预编译内核权限
     - |
       export KERNEL_DIR="/opt/kernels/linux-6.5.7"
       export QEMU_KERNEL="${KERNEL_DIR}/arch/x86/boot/bzImage"
@@ -30,6 +30,9 @@ build_module:
         echo "Error: Prebuilt kernel not found at ${KERNEL_DIR}"
         exit 1
       fi
+      echo "Setting kernel file permissions..."
+      sudo chmod a+r "${QEMU_KERNEL}"
+      sudo chmod a+r -R "${KERNEL_DIR}"
 
     # Build CLI tool first with proper linking
     - echo "Building CLI tool..."
