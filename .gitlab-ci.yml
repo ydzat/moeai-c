@@ -87,10 +87,10 @@ qemu_test:
   script:
     - set -e
     - echo "Starting QEMU test..."
-    - export QEMU_KERNEL="$(pwd)/kernel-src/linux-${KERNEL_VERSION}/arch/x86/boot/bzImage"
-    - export QEMU_INITRD="$(pwd)/scripts/qemu/initramfs.cpio.gz"
+    - export QEMU_KERNEL="/opt/kernels/linux-6.5.7/arch/x86/boot/bzImage"
+    - export QEMU_INITRD="$(pwd)/testenv/minimal_initramfs.cpio.gz"
 
-    - if [ ! -f "${QEMU_KERNEL}" ]; then echo "Error bzImage not found!"; exit 1; fi
+    - if [ ! -f "${QEMU_KERNEL}" ]; then echo "Error bzImage not found at ${QEMU_KERNEL}"; exit 1; fi
     - if [ ! -f "${QEMU_INITRD}" ]; then echo "Error initramfs not found!"; exit 1; fi
 
     # 启动 QEMU（示例脚本，你可以替换成自己的 run_qemu.sh）
