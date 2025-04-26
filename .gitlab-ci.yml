@@ -64,12 +64,15 @@ build_module:
       echo "Output: ${QEMU_INITRD}"
       echo "Config: scripts/qemu/config/ci.conf"
       echo "Init: scripts/qemu/init_scripts/ci_init.sh"
+      # Copy module file to scripts/qemu directory
+      cp moeai.ko scripts/qemu/
       cd scripts/qemu && \
       ./gen_initramfs.sh \
         --kernel "${QEMU_KERNEL}" \
         --initrd "${QEMU_INITRD}" \
         --config ci.conf \
-        --init-script init_scripts/ci_init.sh
+        --init-script init_scripts/ci_init.sh \
+        --module moeai.ko
       cd -
       if [ ! -f "${QEMU_INITRD}" ]; then
         echo "Error: Failed to generate initramfs at ${QEMU_INITRD}"
