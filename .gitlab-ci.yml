@@ -38,8 +38,9 @@ build_module:
     - echo "Building CLI tool..."
     - make cli
     
-    # Build kernel module
-    - echo "Building kernel module..."
+    # Build all modules
+    - echo "Building all modules..."
+    - make all
     - make qemu-build
     
     # Create device nodes with sudo
