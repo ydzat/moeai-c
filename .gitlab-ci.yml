@@ -153,7 +153,7 @@ qemu_test:
     - echo "#!/bin/sh" > testenv/initramfs/init
     - echo "mount -t proc none /proc" >> testenv/initramfs/init
     - echo "mount -t sysfs none /sys" >> testenv/initramfs/init
-    - echo "mount -t devtmpfs none /dev 2>/dev/null || echo \"Warning: Could not mount devtmpfs\"" >> testenv/initramfs/init
+    - echo "mount -t devtmpfs none /dev 2>/dev/null || echo \"Warning Could not mount devtmpfs\"" >> testenv/initramfs/init
     - echo "" >> testenv/initramfs/init
     - echo "echo \"Starting module initialization\"" >> testenv/initramfs/init
     - echo "echo \"-----------------------------\"" >> testenv/initramfs/init
