@@ -273,7 +273,7 @@ qemu_test:
               fi
           else
               log "[FAILED] Could not read self-test results, selftest file missing"
-              STATUS=$FAILURE
+                  STATUS=$FAILURE
           fi
       else
           log "[ERROR] Could not trigger self-test, control file missing"
