@@ -100,11 +100,11 @@ qemu_test:
 
       echo "Creating start_qemu.sh script..."
       echo "#!/bin/bash" > start_qemu.sh
-      echo "timeout 120 qemu-system-x86_64 \" >> start_qemu.sh
-      echo "  -m 1024 \" >> start_qemu.sh
-      echo "  -kernel \"${QEMU_KERNEL}\" \" >> start_qemu.sh
-      echo "  -initrd \"${QEMU_INITRD}\" \" >> start_qemu.sh
-      echo "  -append 'rdinit=/init console=ttyS0' \" >> start_qemu.sh
+      echo "timeout 120 qemu-system-x86_64 \">> start_qemu.sh
+      echo "  -m 1024 \">> start_qemu.sh
+      echo "  -kernel \"\${QEMU_KERNEL}\" \">> start_qemu.sh
+      echo "  -initrd \"\${QEMU_INITRD}\" \">> start_qemu.sh
+      echo "  -append 'rdinit=/init console=ttyS0' \">> start_qemu.sh
       echo "  -nographic" >> start_qemu.sh
 
       chmod +x start_qemu.sh
@@ -122,7 +122,6 @@ qemu_test:
     - moeai
     - linux
   allow_failure: true
-
 
 generate_docs:
   stage: documentation
