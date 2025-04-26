@@ -60,7 +60,7 @@ qemu_test:
       echo "    echo \"[init] Found busybox.\"" >> testenv/initramfs/init
       echo "else" >> testenv/initramfs/init
       echo "    echo \"[init] ERROR: busybox missing\"" >> testenv/initramfs/init
-      echo "    exec sh" >> testenv/initramfs/init
+      echo "    exec /bin/sh" >> testenv/initramfs/init
       echo "fi" >> testenv/initramfs/init
       echo "" >> testenv/initramfs/init
       echo "if [ -f /lib/modules/moeai.ko ]; then" >> testenv/initramfs/init
@@ -73,10 +73,10 @@ qemu_test:
 
       chmod +x testenv/initramfs/init
 
-      echo "Copying busybox..."
+      echo "Copying busybox and creating /bin/sh symlink..."
       if [ -x /bin/busybox ]; then
         cp /bin/busybox testenv/initramfs/bin/busybox
-        ln -sf busybox testenv/initramfs/bin/sh
+        (cd testenv/initramfs/bin && ln -sf busybox sh)
       else
         echo "Error: busybox not found!"
         exit 1
@@ -98,8 +98,8 @@ qemu_test:
 
       export QEMU_INITRD="$(pwd)/artifacts/minimal_initramfs.cpio.gz"
 
-      echo "Verifying contents of initramfs (looking for init and moeai.ko):"
-      zcat "${QEMU_INITRD}" | cpio -itv | grep -E "init|moeai"
+      echo "Verifying contents of initramfs (looking for init and busybox):"
+      zcat "${QEMU_INITRD}" | cpio -itv | grep -E "init|busybox"
 
       echo "Launching QEMU..."
       timeout 120 qemu-system-x86_64 \
@@ -118,7 +118,7 @@ qemu_test:
     - moeai
     - linux
   allow_failure: true
-
+  
 generate_docs:
   stage: documentation
   script:
