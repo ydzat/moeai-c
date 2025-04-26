@@ -21,6 +21,7 @@ build_module:
     - set -e
     - mkdir -p testenv artifacts kernel-src
 
+    # Set up kernel 
     # 设置预编译内核权限
     - |
       export KERNEL_DIR="/opt/kernels/linux-6.5.7"
