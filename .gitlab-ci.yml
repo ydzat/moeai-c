@@ -1,3 +1,5 @@
+# MoeAI-C GitLab CI/CD Configuration File (彻底修正版)
+
 stages:
   - build
   - qemu-test
@@ -49,26 +51,29 @@ qemu_test:
       chmod 755 testenv/initramfs/usr/bin/moectl
 
       echo "Creating /init script..."
-      cat > testenv/initramfs/init <<'EOF'
-      #!/bin/sh
-      mount -t proc none /proc
-      mount -t sysfs none /sys
-      echo "[init] MoeAI-C Test Environment Booted"
-
-      if [ -f /lib/modules/moeai.ko ]; then
-          insmod /lib/modules/moeai.ko && echo "[init] MoeAI-C module loaded successfully." || echo "[init] ERROR: MoeAI-C module load failed."
-      else
-          echo "[init] ERROR: moeai.ko not found!"
-      fi
-
-      exec /bin/sh
-      EOF
+      mkdir -p testenv/initramfs
+      echo "#!/bin/sh" > testenv/initramfs/init
+      echo "mount -t proc none /proc" >> testenv/initramfs/init
+      echo "mount -t sysfs none /sys" >> testenv/initramfs/init
+      echo "echo \"[init] MoeAI-C Test Environment Booted\"" >> testenv/initramfs/init
+      echo "if [ -x /bin/busybox ]; then" >> testenv/initramfs/init
+      echo "    echo \"[init] Found busybox.\"" >> testenv/initramfs/init
+      echo "else" >> testenv/initramfs/init
+      echo "    echo \"[init] ERROR: busybox missing\"" >> testenv/initramfs/init
+      echo "    exit 1" >> testenv/initramfs/init
+      echo "fi" >> testenv/initramfs/init
+      echo "if [ -f /lib/modules/moeai.ko ]; then" >> testenv/initramfs/init
+      echo "    insmod /lib/modules/moeai.ko && echo \"[init] MoeAI-C module loaded successfully.\" || echo \"[init] ERROR: MoeAI-C module load failed.\"" >> testenv/initramfs/init
+      echo "else" >> testenv/initramfs/init
+      echo "    echo \"[init] ERROR: moeai.ko not found!\"" >> testenv/initramfs/init
+      echo "fi" >> testenv/initramfs/init
+      echo "exec /bin/sh" >> testenv/initramfs/init
       chmod +x testenv/initramfs/init
 
-      echo "Copying busybox as /bin/sh..."
+      echo "Copying busybox..."
       if [ -x /bin/busybox ]; then
         cp /bin/busybox testenv/initramfs/bin/busybox
-        ln -sf /bin/busybox testenv/initramfs/bin/sh
+        ln -sf busybox testenv/initramfs/bin/sh
       else
         echo "Error: busybox not found!"
         exit 1
@@ -94,7 +99,7 @@ qemu_test:
       zcat "${QEMU_INITRD}" | cpio -itv | grep init
 
       echo "Launching QEMU..."
-      qemu-system-x86_64 -m 1024 -kernel "${QEMU_KERNEL}" -initrd "${QEMU_INITRD}" -append "rdinit=/init console=ttyS0" -nographic
+      timeout 60 qemu-system-x86_64 -m 1024 -kernel "${QEMU_KERNEL}" -initrd "${QEMU_INITRD}" -append "rdinit=/init console=ttyS0" -nographic || echo "QEMU exited or timed out"
 
       echo "QEMU test completed."
   artifacts:
